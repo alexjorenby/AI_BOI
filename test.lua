@@ -3,21 +3,31 @@ require 'nn'
 require 'lfs'
 require 'math'
 
+iteration = 0
+
 rand_cap = -25
 
 local function init_nn()
   net = nn.Sequential()
-  net:add(nn.Linear(137, 900))
+  net:add(nn.Linear(136, 300))
   net:add(nn.Tanh())
-  net:add(nn.Linear(900, 800))
+  net:add(nn.Linear(300, 500))
   net:add(nn.Tanh())
-  net:add(nn.Linear(800, 1000))
+  net:add(nn.Linear(500, 900))
   net:add(nn.Tanh())
-  net:add(nn.Linear(1000, 500))
+  net:add(nn.Linear(900, 200))
   net:add(nn.Tanh())
-  net:add(nn.Linear(500, 1))
+  net:add(nn.Linear(200, 1))
   
   criterion = nn.MSECriterion()
+end
+
+
+function random_chance(action, odds)      
+  if (math.random(0,100) <= odds) then
+    action = math.random(0,3)
+  end
+  return action
 end
 
 
@@ -28,41 +38,33 @@ local function forward_prop(input)
     input[136] = i
     output = net:forward(input)
     
-      if (i == 0) then
-        a = "u"
-      elseif (i == 1) then
-        a = "d"
-      elseif (i == 2) then
-        a = "r"
-      elseif (i == 3) then
-        a = "l"
-      else
-        a = "f"
-      end
-    
-    
-    
-    print("Output for action " .. tostring(a) .. ": " .. output[1])
+    print("Output for action " .. tostring(i) .. ": " .. output[1])
     if (output[1] > max_reward) then
       action = i
       max_reward = output[1]
     end    
   end
+  
+  action = random_chance(action, 40)
+  input[136] = action
+  
+  
   local output = net:forward(input)
-  return action, output
+  return input, output, action
 end
 
 
 local function back_prop(input, predicted_output, actual_output)
   
-  criterion:forward(net:forward(input), actual_output)
+  local err = criterion:forward(net:forward(input), actual_output)
+  local gradOutput = criterion:backward(predicted_output, actual_output)
   net:zeroGradParameters()
-  net:backward(input, criterion:backward(net.output, actual_output))
-  net:updateParameters(0.0001)
-  
-  
-  print("actual output: " .. tostring(actual_output[1]))
-  print("\n\n")
+  net:backward(input, gradOutput)
+  net:updateParameters(0.001)
+    
+  print("Predicted Output: " .. tostring(predicted_output))  
+  print("Actual Output: " .. tostring(actual_output[1]))
+  print("Error: " .. tostring(err))
 
 end
 
@@ -74,84 +76,54 @@ local function update_cmd(direction)
 end
 
 
+local function process_features(previous_score)
+  local file = io.open("save1.dat", "r")
+  io.input(file)
+
+  local score = tonumber(io.read())  
+  local input_buf = torch.Tensor(136)
+  local temp = 0
+  for i=1,135 do
+    temp = tonumber(io.read())
+    input_buf[i] = temp
+  end
+  io.close(file)
+  
+  return input_buf, score
+end
+
+
 local function main()
   init_nn()
   local atrib = lfs.attributes("save1.dat")
   local file_modified = atrib.size
   local iteration = 0
-  local current_score = 0
-  local previous_score = 0
-  local predicted_reward = 0
-  local input_buf = torch.Tensor(136)
-  local action = 0
-  local actual_output = torch.Tensor(1)
-  local sum = 0
   
   while 1==1 do
     atrib = lfs.attributes("save1.dat")
     local new_file_size = atrib.size
     if (new_file_size > 5) then
-      random = false
-
-      local file = io.open("save1.dat", "r")
-      io.input(file)
+      local input_buf, new_score = process_features(score)
       
-      current_score = tonumber(io.read())
-      actual_output[1] = current_score
       if (iteration > 0) then
-        back_prop(input_buf, predicted_output, actual_output)
+        local actual_output = torch.Tensor({new_score - previous_score})
+        back_prop(input, predicted_output, actual_output)
       end
-      sum = 0
+      previous_score = new_score
+            
+      input, predicted_output, action = forward_prop(input_buf)
       
-      input_buf = torch.Tensor(137)
-      local temp = 0
-      for i=1,135 do
-        temp = tonumber(io.read())
-        sum = sum + temp
-        input_buf[i] = temp
-      end
-      io.close(file)
-      
-      
-      input_buf[137] = current_score
-      
-      action, predicted_output = forward_prop(input_buf)
-      
-      
-      rand_cap = rand_cap + 1
-      if (rand_cap >= 40) then
-        rand_cap = 40
-      end
-      if (iteration >= 500) then
-        rand_cap = 0
-      end
-      
-      if (math.random(0,100) >= rand_cap) then
---        action = math.random(0,3)
---        random = true
-      end
-
-      
-      
-      input_buf[136] = action
-
-
-      print("Action: " .. action .. " Random: " .. tostring(random))
-      print("Predicted Output: " .. tostring(predicted_output))
-      print("Random Action: " .. tostring(100-rand_cap) .. "%")
-      
-      iteration = iteration + 1
-      print("Iteration: " .. iteration)
-      
-      
-
-
-
       update_cmd(action)
       
       atrib = lfs.attributes("save1.dat")
       new_file_size = atrib.size
       file_modified = new_file_size
+            
+      print("Iteration: " .. tostring(iteration))
+      print("\n\n")
+            
+      iteration = iteration + 1
+      
     end
   end  
 end

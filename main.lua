@@ -22,23 +22,9 @@ tears2 = {}
 item_time = 600
 frame_counter = 0
 test_map = {}
-possible_paths = {}
-store_map = {}
-store_map_count = 0
-end_game = 666
-
-
-reset = 0
-
+end_game = 1
 
 command = -1
-
-init_action = 0
-init_push = 0
-
-
-wait = 100
-
 
 custom_score = 0
 
@@ -51,18 +37,13 @@ local target = -1
 -- pick up the "leftovers" from a first-traversal, and --
 -- waste less time walking around.                     --
 function testMod:new_room_update()
-  reset = reset + 1
+--  reset = reset + 1
 
   game = Game()
   local level = game:GetLevel()
 	local room_desc = level:GetCurrentRoomDesc()
   room = game:GetRoom()
 
-
-  
-  store_map = {}
-  store_map_count = 0
-  
   tears = {}
   tears2 = {}
 	if (room_desc.VisitedCount > 1) then
@@ -70,17 +51,9 @@ function testMod:new_room_update()
 	else
 		item_time = 300
 	end
---	update_strategy()
 
-  local tt = Vector(0, -11)
-  player:AddVelocity(tt)
-
+  custom_score = custom_score + 30
   
-  
-  if (reset >= 2) then
-    custom_score = custom_score + 50
-    post_init_restart()
-  end
   
 end
 
@@ -104,17 +77,12 @@ function testMod:update_agent()
 
 	Isaac.RenderText("ITEM TIME: " .. tostring(item_time), 200, 25, 255, 0, 255, 255)
   Isaac.RenderText("Reset: " .. tostring(reset), 50, 25, 255, 0, 255, 255)
-  Isaac.RenderText("Init_action: " .. tostring(init_action), 300, 25, 255, 0, 255, 255)
+--  Isaac.RenderText("Init_action: " .. tostring(init_action), 300, 25, 255, 0, 255, 255)
   
-  if (item_time < 0) then
-    init_action = 0
-    post_init_restart()
-  end
   
-  if (init_action < 5) then
+  if (frame_counter % 20 == 0) then
     target = update_strategy()
   end
-  
   
 --  collector.collect_tears(tears, target)
 	cartographer.render_map(test_map)
@@ -137,7 +105,8 @@ function update_strategy()
   
   
   if (end_game <= 0) then
---    post_init_restart()
+    custom_score = 0
+    post_init_restart()
   end
   
 	D_map = {}  
@@ -151,7 +120,6 @@ function update_strategy()
 	local curr_node = room:GetGridIndex(player.Position)
   
   
-  custom_score = custom_score - 2
   local str = Isaac.LoadModData(testMod)
   local iterator = 0
   local square_count = 0
@@ -174,13 +142,13 @@ function update_strategy()
   
   
   if (room:IsClear()) then
+    custom_score = custom_score - 3
     aim_direction = 0
   else
+    custom_score = custom_score - 1
     return fighter.Shoot_Tear()
   end
   
-  
-  init_action = 10
   
     
 end
@@ -234,6 +202,10 @@ function testMod:damage_taken(entity, damageamount, damageflag, damagesource)
     if (tears[t.Index] ~= nil) then
       tears[t.Index]["hit"] = true
     end
+    custom_score = custom_score + 9
+  end
+  if (entity.Type == 1) then
+    custom_score = custom_score - 15
   end
 end
 
