@@ -7,12 +7,12 @@ require "math"
 
 require("enum.constants")
 
-local pathfinder = require("scripts.planning.navigation")
+--local pathfinder = require("scripts.planning.navigation")
 local operator = require("scripts.actions.movement")
 local fighter = require("scripts.actions.combat")
 local cartographer = require("scripts.sensors.map")
-local helper = require("scripts.help")
-local sensor = require("scripts.planning.goal")
+--local helper = require("scripts.help")
+--local sensor = require("scripts.planning.goal")
 local collector = require("scripts.sensors.entities")
 
 game = Game()
@@ -27,6 +27,10 @@ end_game = 1
 command = -1
 
 custom_score = 0
+
+
+
+other_type = 0
 
 
 
@@ -62,10 +66,7 @@ function testMod:update_agent()
 	player = Isaac.GetPlayer(0)
 	item_time = item_time - 1
 	frame_counter = frame_counter + 1
-	
 
-  
-  
 --  local total_tears = 0
 --  local tears_hit = 0
 --  for ent, x in pairs(tears) do
@@ -77,7 +78,7 @@ function testMod:update_agent()
 
 	Isaac.RenderText("ITEM TIME: " .. tostring(item_time), 200, 25, 255, 0, 255, 255)
   Isaac.RenderText("Reset: " .. tostring(reset), 50, 25, 255, 0, 255, 255)
---  Isaac.RenderText("Init_action: " .. tostring(init_action), 300, 25, 255, 0, 255, 255)
+  Isaac.RenderText("Command: " .. tostring(command), 300, 25, 255, 0, 255, 255)
   
   
   if (frame_counter % 20 == 0) then
@@ -99,6 +100,7 @@ function testMod:update_agent()
   			
 end
 
+
 function update_strategy()
   
   end_game = player:GetHearts() + player:GetSoulHearts() + player:GetBlackHearts() + player:GetEternalHearts() + player:GetExtraLives()
@@ -111,15 +113,12 @@ function update_strategy()
   
 	D_map = {}  
   local collection = collector.find_entities()
---  local goal = cartographer.make_map(D_map, collection[1], collection[3], collection[2])
   
   test_map = {}
   cartographer.make_new_map(test_map, collection[1], collection[3], collection[2])
   
-  
 	local curr_node = room:GetGridIndex(player.Position)
-  
-  
+    
   local str = Isaac.LoadModData(testMod)
   local iterator = 0
   local square_count = 0
@@ -137,10 +136,7 @@ function update_strategy()
     str = new_str .. str
     Isaac.SaveModData(testMod, str)
   end
-  
-  
-  
-  
+
   if (room:IsClear()) then
     custom_score = custom_score - 3
     aim_direction = 0
@@ -210,6 +206,14 @@ function testMod:damage_taken(entity, damageamount, damageflag, damagesource)
 end
 
 
+function testMod:entity_killed(entity)
+  if (entity:isvulnerableEnemy()) then
+    custom_score = custom_score + 15
+  end
+end
+
+
+
 testMod:AddCallback(ModCallbacks.MC_POST_NEW_ROOM, testMod.new_room_update)
 
 testMod:AddCallback(ModCallbacks.MC_POST_RENDER, testMod.update_agent)
@@ -220,4 +224,5 @@ testMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, testMod.execute_shoot, InputHo
 
 testMod:AddCallback(ModCallbacks.MC_ENTITY_TAKE_DMG, testMod.damage_taken)
 
+testMod:AddCallback(ModCallbacks.MC_POST_ENTITY_KILL, testMod.entity_killed)
 

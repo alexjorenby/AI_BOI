@@ -72,36 +72,24 @@ function traverse_path(player, path)
 	local onY = false
 	local acc = 9
 
---	if (# path < 1) then
---		return result
---	end
---	local dest = room:GetGridPosition(tonumber(path[1]))
-  
---	if (player_pos.Y > (dest.Y + acc)) then
   if (command == 0) then
 		result = "up"
---	elseif (player_pos.Y < (dest.Y - acc)) then
-  end
-  if (command == 1) then
+  elseif (command == 1) then
 		result = "down"
---	else
---		onY = true
-	end
---	if (player_pos.X <= (dest.X - acc)) then
-  if (command == 2) then
---		result = result .. "right"
+  elseif (command == 2) then
     result = "right"
---	elseif (player_pos.X >= (dest.X + acc)) then
-  end
-  if (command == 3) then
---		result = result .. "left"
+  elseif (command == 3) then
     result = "left"
---	else
---		onX = true
-	end
---	if (onX and onY) then
---		table.remove(path, 1)
---	end  
+  elseif (command == 4) then
+    result = "upright"
+  elseif (command == 5) then
+    result = "upleft"
+  elseif (command == 5) then
+    result = "downright"
+  elseif (command == 6) then
+    result = "downleft"
+  end
+
   push_player(player, result)
   
 end

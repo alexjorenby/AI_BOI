@@ -3,9 +3,6 @@ require 'nn'
 require 'lfs'
 require 'math'
 
-iteration = 0
-
-rand_cap = -25
 
 local function init_nn()
   net = nn.Sequential()
@@ -25,7 +22,7 @@ end
 
 function random_chance(action, odds)      
   if (math.random(0,100) <= odds) then
-    action = math.random(0,3)
+    action = math.random(0,6)
   end
   return action
 end
@@ -34,7 +31,7 @@ end
 local function forward_prop(input)
   local action = 0
   local max_reward = math.huge * -1
-  for i=0,3 do
+  for i=0,6 do
     input[136] = i
     output = net:forward(input)
     
@@ -65,14 +62,8 @@ local function back_prop(input, predicted_output, actual_output)
   print("Predicted Output: " .. tostring(predicted_output))  
   print("Actual Output: " .. tostring(actual_output[1]))
   print("Error: " .. tostring(err))
+  print("Rand Chance: " ..tostring(rand_test))
 
-end
-
-
-local function update_cmd(direction)
-  local cmd_file = io.open("save1.dat", "w+")
-  cmd_file.write(cmd_file, tostring(direction))
-  cmd_file.close()
 end
 
 
@@ -93,6 +84,29 @@ local function process_features(previous_score)
 end
 
 
+local function update_cmd(direction)
+  local cmd_file = io.open("save1.dat", "w+")
+  cmd_file.write(cmd_file, tostring(direction))
+  cmd_file.close()
+end
+
+
+local function update_data(file_name, input, output)
+  local f = io.open(file_name, "r")
+  if (f == nil) then
+    f = io.open(file_name, "w")
+    local dataset = {}
+    dataset[0] = { data = input, labels = output }
+    torch.save(file_name, dataset)
+  else
+    saved_dataset = torch.load(file_name)
+    saved_dataset[#saved_dataset+1] = { data = input, labels = output }
+    torch.save(file_name, saved_dataset)
+  end
+  f.close(f)
+end
+
+
 local function main()
   init_nn()
   local atrib = lfs.attributes("save1.dat")
@@ -108,6 +122,7 @@ local function main()
       if (iteration > 0) then
         local actual_output = torch.Tensor({new_score - previous_score})
         back_prop(input, predicted_output, actual_output)
+        update_data("./datasets/dataset1.t7", input, actual_output)
       end
       previous_score = new_score
             

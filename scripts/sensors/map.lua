@@ -7,13 +7,7 @@ require("enum.constants")
 local pathfinder = require("scripts.planning.navigation")
 local helper = require("scripts.help")
 
-function make_new_map(map, enemy_locations, room_items, fire)
-  
-  local goal = -1
-  local goal_override = false
-  local goal_found = false
-  
-  
+function make_new_map(map, enemy_locations, room_items, fire)  
   local room_width = room:GetGridWidth()
   local room_height = room:GetGridHeight()
   local grid_size = room:GetGridSize()-1
@@ -21,8 +15,6 @@ function make_new_map(map, enemy_locations, room_items, fire)
   
   
   local start = 0
-  
-  
   
   if (room_width > 15 or room_height > 9) then      
     start = isaac_pos - 7 - 4 * room_width
@@ -89,58 +81,6 @@ function make_new_map(map, enemy_locations, room_items, fire)
   
 end
 
-function make_map(map, enemy_locations, room_items, fire)
-  local goal = -1
-  local goal_override = false
-  local goal_found = false
-  local room_width = room:GetGridWidth()
-  
-  
-	for grid_iterator = 0, room:GetGridSize()-1 do
-		grid_entity = room:GetGridEntity(grid_iterator)
-            
-    if (grid_entity ~= nil) then
-      grid_entity_type = grid_entity.Desc.Type        
-      if (helper.contains(avoid, grid_entity_type) and room:GetGridCollision(grid_iterator) ~= 0 or grid_entity_type == 8) then
-        map[grid_iterator] = 1
-      elseif (grid_entity_type == 20) then
-        if (not goal_override and grid_entity.State == 0 and item_time > 0) then
-          goal = grid_iterator
-          map[grid_iterator] = 666
-          goal_override = true
-          goal_found = true
-          
-        else
-          map[grid_iterator] = 2
-        end
-        
-      else
-        map[grid_iterator] = 0
-        
-      end
-    else
-      map[grid_iterator] = 0
-      
-    end
-    
-	end
-  
-  
-  for ent, x in pairs(room_items) do
-    map[ent] = 3
-  end
-  for ent, x in pairs(enemy_locations) do
-    map[ent] = 6
-  end
-  for ent, x in pairs(fire) do
-    map[ent] = 6
-  end
-  
-  return goal
-end
-
-
-
 
 function render_map(arr)
   local iterator = 0
@@ -162,7 +102,6 @@ function render_map(arr)
   end
 end
 
-M.make_map = make_map
 M.render_map = render_map
 M.make_new_map = make_new_map
 
