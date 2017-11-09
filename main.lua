@@ -92,7 +92,7 @@ function testMod:update_agent()
   
   
   temp = Isaac.LoadModData(testMod)
-  if (# temp < 5) then
+  if (# temp < 8) then
     command = tonumber(temp)
   else
     command = command
@@ -100,14 +100,16 @@ function testMod:update_agent()
   			
 end
 
+curr_node = 0
+last_node = 0
 
 function update_strategy()
   
   end_game = player:GetHearts() + player:GetSoulHearts() + player:GetBlackHearts() + player:GetEternalHearts() + player:GetExtraLives()
   
   
-  if (end_game <= 0) then
-    custom_score = 0
+  if (end_game <= 0 or item_time <= -1000) then
+--    custom_score = 0
     post_init_restart()
   end
   
@@ -117,8 +119,14 @@ function update_strategy()
   test_map = {}
   cartographer.make_new_map(test_map, collection[1], collection[3], collection[2])
   
-	local curr_node = room:GetGridIndex(player.Position)
+	curr_node = room:GetGridIndex(player.Position)
+  
+  if (curr_node == last_node) then
+    custom_score = custom_score - 10
+  end
     
+  last_node = curr_node
+  
   local str = Isaac.LoadModData(testMod)
   local iterator = 0
   local square_count = 0
@@ -138,10 +146,10 @@ function update_strategy()
   end
 
   if (room:IsClear()) then
-    custom_score = custom_score - 3
+--    custom_score = custom_score - 2
     aim_direction = 0
   else
-    custom_score = custom_score - 1
+--    custom_score = custom_score - 1
     return fighter.Shoot_Tear()
   end
   
@@ -151,6 +159,7 @@ end
 
 
 function post_init_restart()
+  custom_score = custom_score - 30
   init_action = 0
   reset = 0
   Isaac.ExecuteCommand("restart")
