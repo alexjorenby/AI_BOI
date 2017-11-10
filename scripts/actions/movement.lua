@@ -72,21 +72,21 @@ function traverse_path(player, path)
 	local onY = false
 	local acc = 9
 
-  if (command == 0) then
+  if (command == 1) then
 		result = "up"
-  elseif (command == 1) then
-		result = "down"
   elseif (command == 2) then
-    result = "right"
+		result = "down"
   elseif (command == 3) then
-    result = "left"
+    result = "right"
   elseif (command == 4) then
+    result = "left"
+  elseif (command == 5) then
     result = "upright"
-  elseif (command == 5) then
-    result = "upleft"
-  elseif (command == 5) then
-    result = "downright"
   elseif (command == 6) then
+    result = "upleft"
+  elseif (command == 7) then
+    result = "downright"
+  elseif (command == 8) then
     result = "downleft"
   end
 

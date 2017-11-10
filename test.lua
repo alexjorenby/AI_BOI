@@ -2,24 +2,14 @@ require 'torch'
 require 'nn'
 require 'lfs'
 require 'math'
-
-choices = {}
-
-
-choices[0] = 0
-choices[1] = 0
-choices[2] = 0
-choices[3] = 0
-choices[4] = 0
-choices[5] = 0
-choices[6] = 0
+require 'os'
 
 
-rand_chance = 60
+rand_chance = 10
 
-local function init_nn()
+local function init_nn(inputs, outputs)
   local net = nn.Sequential()
-  net:add(nn.Linear(136, 300))
+  net:add(nn.Linear(inputs, 300))
   net:add(nn.Tanh())
   net:add(nn.Linear(300, 500))
   net:add(nn.Tanh())
@@ -27,63 +17,37 @@ local function init_nn()
   net:add(nn.Tanh())
   net:add(nn.Linear(900, 200))
   net:add(nn.Tanh())
-  net:add(nn.Linear(200, 1))
+  net:add(nn.Linear(200, outputs))
   
   local criterion = nn.MSECriterion()
-  
-  
-  local net2 = nn.Sequential()
-  net2:add(nn.Linear(136, 300))
-  net2:add(nn.Tanh())
-  net2:add(nn.Linear(300, 500))
-  net2:add(nn.Tanh())
-  net2:add(nn.Linear(500, 900))
-  net2:add(nn.Tanh())
-  net2:add(nn.Linear(900, 200))
-  net2:add(nn.Tanh())
-  net2:add(nn.Linear(200, 135))
-  
-  local criterion2 = nn.MSECriterion()
-  
-  return net, criterion, net2, criterion2
-  
+  return net, criterion
 end
 
 
 function random_chance(action, odds)      
   if (math.random(0,100) <= odds) then
-    action = math.random(0,6)
+    action = math.random(1,8)
   end
   return action
 end
 
 
 local function forward_prop(input, net)
-  local action = 0
+  
+  output = net:forward(input)
   local max_reward = math.huge * -1
-  for i=0,6 do
-    input_action = i*10000
-    input[136] = input_action
-    output = net:forward(input)
-    
-    print("Output for action " .. tostring(i) .. ": " .. output[1])
-    if (output[1] > max_reward) then
+  local action = 0
+  for i=1,8 do
+    if (output[i] > max_reward) then
       action = i
-      max_reward = output[1]
-    end    
+      max_reward = output[i]
+    end
   end
   
   print("Action Predicted: " .. tostring(action))
-  choices[action] = choices[action] + 1
-  
-  
   action = random_chance(action, rand_chance)
-  input[136] = action * 10000
-  
   print("Action Taken: " .. tostring(action))
-  
-  
-  local output = net:forward(input)
+    
   return input, output, action
 end
 
@@ -150,15 +114,8 @@ local function update_data(file_name, input, output)
 end
 
 
-local function predict_next_state(input, action, net2)
-  input[136] = action
-  local output = net2:forward(input)
-  return input, output
-end
-
-
 local function main()
-  local net, criterion, net2, criterion2 = init_nn()
+  local net, criterion = init_nn(135, 8)
   local atrib = lfs.attributes("save1.dat")
   local file_modified = atrib.size
   local iteration = 0
@@ -166,45 +123,38 @@ local function main()
   local previous_score = 0
   local discount = 1/2
   local a = 1
+  local dataset_name = "./datasets/dataset" .. tostring(os.date("%m-%d-%y;%H:%M")) .. ".t7"
   
   while a==1 do
     atrib = lfs.attributes("save1.dat")
     local new_file_size = atrib.size
     if (new_file_size > 5) then
-      local input, new_score = process_features(score, 136)
+      local input, new_score = process_features(score, 135)
             
-      input, predicted_reward, action = forward_prop(input, net)
-      
+      input, predicted_output, action = forward_prop(input, net)
       
       if (iteration > 0) then
-        local observed_output = torch.Tensor({new_score - previous_score})
-        local observed_reward = observed_output + discount * predicted_reward
-        print("Observed_reward: " .. tostring(observed_reward))
-        print("Action From Input: " .. tostring(input_buf[136]))
-        back_prop(input_buf, predicted_reward_buf, observed_reward, net, criterion, 0.001)
---        update_data("./datasets/dataset1.t7", input, observed_output)
-
+        local observed_output = torch.Tensor(previous_predicted_output:size()):copy(previous_predicted_output)
+        observed_output[previous_action] = (new_score - previous_score) + discount * predicted_output[previous_action]
+        print("Observed_reward: " .. tostring(observed_output))
+        print("Action From Input: " .. tostring(previous_action))
+        back_prop(previous_input, previous_predicted_output, observed_output, net, criterion, 0.01)
+        update_data(dataset_name, input, observed_output)
 
         print("\nEND OF SET\n")
---        local actual_output2, new_score2 = process_features(score, 135)
         
---        back_prop(input2, predicted_output2, actual_output2, net2, criterion2, 0.01)
-        
+        if (iteration % 200 == 0) then
+          dataset_name = "./datasets/dataset" .. tostring(os.date("%m-%d-%y;%H:%M")) .. ".t7"
+        end
         
       end
 
-      input_buf = input
-      predicted_reward_buf = predicted_reward
+      previous_input = input
+      previous_action = action
+      previous_predicted_output = predicted_output
       previous_score = new_score
       
-      
---      input2, predicted_output2 = predict_next_state(input_buf, action, net2)
-      
-      
       update_cmd(action)
-      
-
-      
       
       atrib = lfs.attributes("save1.dat")
       new_file_size = atrib.size
@@ -215,22 +165,13 @@ local function main()
             
       iteration = iteration + 1
       
-      
       if (iteration >= 10800) then
         a = 2
       end
       
     end
   end  
-  
-  print(choices[0])
-  print(choices[1])
-  print(choices[2])
-  print(choices[3])
-  print(choices[4])
-  print(choices[5])
-  print(choices[6])
-  
+    
 end
 
 
