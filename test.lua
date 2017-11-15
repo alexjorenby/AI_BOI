@@ -75,12 +75,12 @@ local function process_features(previous_score, num_features)
   local score = tonumber(io.read())  
   local input_buf = torch.Tensor(num_features)
   local temp = 0
-  for i=1,135 do
+  for i=1,num_features do
     temp = tonumber(io.read())
     if (temp == 16) then
       temp = temp * 1000
     end
-    if (temp > 16) then
+    if (temp > 16 or i >= 136) then
       temp = temp * 10
     end
     input_buf[i] = temp
@@ -114,8 +114,40 @@ local function update_data(file_name, input, output)
 end
 
 
+local function train_from_datset(net, criterion, iterations, learning_rate)
+  local dataset = {}
+  local dsn = 1
+  local j = 0
+  
+  local dataset_size = 0
+  for file in lfs.dir("./datasets") do
+    if (# file >= 24) then
+      local ds = torch.load("./datasets/" .. file)
+      for i=0, #ds do
+        local input = ds[i].data
+        local output = ds[i].labels
+        dataset[i+dataset_size] = { input, output }
+      end
+      dataset_size = # dataset
+    end
+    
+  end
+  function dataset:size() return # dataset end
+
+  print("Datset size: " .. dataset:size())
+  if (dataset:size() >= 1) then
+    local trainer = nn.StochasticGradient(net, criterion)
+    trainer.learningRate = learning_rate
+    trainer.maxIteration = iterations
+    trainer:train(dataset)
+  end
+  
+end
+
+
 local function main()
-  local net, criterion = init_nn(135, 8)
+  local num_features = 137
+  local net, criterion = init_nn(num_features, 8)
   local atrib = lfs.attributes("save1.dat")
   local file_modified = atrib.size
   local iteration = 0
@@ -125,11 +157,13 @@ local function main()
   local a = 1
   local dataset_name = "./datasets/dataset" .. tostring(os.date("%m-%d-%y;%H:%M")) .. ".t7"
   
+  train_from_datset(net, criterion, 10, 0.001)
+  
   while a==1 do
     atrib = lfs.attributes("save1.dat")
     local new_file_size = atrib.size
     if (new_file_size > 5) then
-      local input, new_score = process_features(score, 135)
+      local input, new_score = process_features(score, num_features)
             
       input, predicted_output, action = forward_prop(input, net)
       
@@ -165,9 +199,9 @@ local function main()
             
       iteration = iteration + 1
       
-      if (iteration >= 10800) then
-        a = 2
-      end
+--      if (iteration >= 10800*3) then
+--        a = 2
+--      end
       
     end
   end  

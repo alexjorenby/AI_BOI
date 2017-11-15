@@ -64,6 +64,7 @@ end
 
 function testMod:update_agent()
 	player = Isaac.GetPlayer(0)
+  
 	item_time = item_time - 1
 	frame_counter = frame_counter + 1
 
@@ -77,7 +78,7 @@ function testMod:update_agent()
 --  end
 
 	Isaac.RenderText("ITEM TIME: " .. tostring(item_time), 200, 25, 255, 0, 255, 255)
-  Isaac.RenderText("Reset: " .. tostring(reset), 50, 25, 255, 0, 255, 255)
+--  Isaac.RenderText("PMV: " .. tostring(player_velocity.X) .. " - " .. tostring(player_velocity.Y), 50, 25, 255, 0, 255, 255)
   Isaac.RenderText("Command: " .. tostring(command), 300, 25, 255, 0, 255, 255)
   
   
@@ -108,7 +109,7 @@ function update_strategy()
   end_game = player:GetHearts() + player:GetSoulHearts() + player:GetBlackHearts() + player:GetEternalHearts() + player:GetExtraLives()
   
   
-  if (end_game <= 0 or item_time <= -1000) then
+  if (end_game <= 0 or item_time <= -5000) then
 --    custom_score = 0
     post_init_restart()
   end
@@ -139,6 +140,12 @@ function update_strategy()
     end
     iterator = iterator + 1
   end
+  
+  
+  local player_velocity = player.Velocity
+  new_str = new_str .. tostring(player_velocity.X) .. "\n"
+  new_str = new_str .. tostring(player_velocity.Y) .. "\n"
+  
 
   if (new_str ~= "") then
     str = new_str .. str
