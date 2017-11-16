@@ -4,7 +4,6 @@ local testMod = RegisterMod("TestMod", 1)
 
 require "math"
 
-
 require("enum.constants")
 
 --local pathfinder = require("scripts.planning.navigation")
@@ -21,17 +20,12 @@ tears = {}
 tears2 = {}
 item_time = 600
 frame_counter = 0
-test_map = {}
+room_map = {}
 end_game = 1
 
 command = -1
 
 custom_score = 0
-
-
-
-other_type = 0
-
 
 
 local target = -1
@@ -55,9 +49,7 @@ function testMod:new_room_update()
 	else
 		item_time = 300
 	end
-
-  custom_score = custom_score + 30
-  
+  custom_score = custom_score + 30  
   
 end
 
@@ -80,17 +72,14 @@ function testMod:update_agent()
 	Isaac.RenderText("ITEM TIME: " .. tostring(item_time), 200, 25, 255, 0, 255, 255)
 --  Isaac.RenderText("PMV: " .. tostring(player_velocity.X) .. " - " .. tostring(player_velocity.Y), 50, 25, 255, 0, 255, 255)
   Isaac.RenderText("Command: " .. tostring(command), 300, 25, 255, 0, 255, 255)
-  
-  
+    
   if (frame_counter % 20 == 0) then
     target = update_strategy()
-  end
-  
+  end  
 --  collector.collect_tears(tears, target)
-	cartographer.render_map(test_map)
+	cartographer.render_map(room_map)
   
-	operator.traverse_path(player, path)
-  
+	operator.traverse_path(player, path)  
   
   temp = Isaac.LoadModData(testMod)
   if (# temp < 8) then
@@ -103,12 +92,10 @@ end
 
 curr_node = 0
 last_node = 0
-
 function update_strategy()
   
   end_game = player:GetHearts() + player:GetSoulHearts() + player:GetBlackHearts() + player:GetEternalHearts() + player:GetExtraLives()
-  
-  
+    
   if (end_game <= 0 or item_time <= -5000) then
 --    custom_score = 0
     post_init_restart()
@@ -117,8 +104,8 @@ function update_strategy()
 	D_map = {}  
   local collection = collector.find_entities()
   
-  test_map = {}
-  cartographer.make_new_map(test_map, collection[1], collection[3], collection[2])
+  room_map = {}
+  cartographer.make_new_map(room_map, collection[1], collection[3], collection[2])
   
 	curr_node = room:GetGridIndex(player.Position)
   
@@ -134,13 +121,12 @@ function update_strategy()
   local new_str = tostring(custom_score) .. "\n"
 
   while (iterator < 450 and square_count < 135) do
-    if (test_map[iterator] ~= nil) then
-      new_str = new_str .. tostring(test_map[iterator]) .. "\n"
+    if (room_map[iterator] ~= nil) then
+      new_str = new_str .. tostring(room_map[iterator]) .. "\n"
       square_count = square_count + 1
     end
     iterator = iterator + 1
-  end
-  
+  end  
   
   local player_velocity = player.Velocity
   new_str = new_str .. tostring(player_velocity.X) .. "\n"
@@ -153,14 +139,10 @@ function update_strategy()
   end
 
   if (room:IsClear()) then
---    custom_score = custom_score - 2
     aim_direction = 0
   else
---    custom_score = custom_score - 1
     return fighter.Shoot_Tear()
   end
-  
-  
     
 end
 
@@ -171,7 +153,6 @@ function post_init_restart()
   reset = 0
   Isaac.ExecuteCommand("restart")
 end
-
 
 
 function testMod:execute_movement(player, hook, but)
@@ -188,6 +169,7 @@ function testMod:execute_movement(player, hook, but)
   end
   
 end 
+
 
 function testMod:execute_shoot(player, hook, but)
   -- Combat
@@ -206,6 +188,7 @@ function testMod:execute_shoot(player, hook, but)
   end
   
 end
+
 
 function testMod:damage_taken(entity, damageamount, damageflag, damagesource)
   if (damagesource.Type == 2) then

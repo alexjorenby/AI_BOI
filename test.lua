@@ -5,8 +5,6 @@ require 'math'
 require 'os'
 
 
-rand_chance = 10
-
 local function init_nn(inputs, outputs)
   local net = nn.Sequential()
   net:add(nn.Linear(inputs, 300))
@@ -32,7 +30,7 @@ function random_chance(action, odds)
 end
 
 
-local function forward_prop(input, net)
+local function forward_prop(input, net, random_percentage)
   
   output = net:forward(input)
   local max_reward = math.huge * -1
@@ -45,7 +43,7 @@ local function forward_prop(input, net)
   end
   
   print("Action Predicted: " .. tostring(action))
-  action = random_chance(action, rand_chance)
+  action = random_chance(action, random_percentage)
   print("Action Taken: " .. tostring(action))
     
   return input, output, action
@@ -91,9 +89,9 @@ local function process_features(previous_score, num_features)
 end
 
 
-local function update_cmd(direction)
+local function update_cmd(command)
   local cmd_file = io.open("save1.dat", "w+")
-  cmd_file.write(cmd_file, tostring(direction))
+  cmd_file.write(cmd_file, tostring(command))
   cmd_file.close()
 end
 
@@ -114,34 +112,121 @@ local function update_data(file_name, input, output)
 end
 
 
-local function train_from_datset(net, criterion, iterations, learning_rate)
+local function train_from_datset(net, criterion, iterations, learning_rate, dataset_size)
   local dataset = {}
   local dsn = 1
   local j = 0
   
-  local dataset_size = 0
+  local data_offset = 0
   for file in lfs.dir("./datasets") do
     if (# file >= 24) then
       local ds = torch.load("./datasets/" .. file)
       for i=0, #ds do
         local input = ds[i].data
         local output = ds[i].labels
-        dataset[i+dataset_size] = { input, output }
+        dataset[i+data_offset] = { input, output }
       end
-      dataset_size = # dataset
     end
     
   end
-  function dataset:size() return # dataset end
-
-  print("Datset size: " .. dataset:size())
+  if dataset_size > # dataset then
+    dataset_size = # dataset
+  end
+  function dataset:size() return dataset_size end
+  
   if (dataset:size() >= 1) then
     local trainer = nn.StochasticGradient(net, criterion)
     trainer.learningRate = learning_rate
     trainer.maxIteration = iterations
+    trainer.shuffleIndices = true
     trainer:train(dataset)
   end
   
+end
+
+
+local function prompt_user()
+  local confirm = 'n'
+  local dataset_size = -1
+  local train_iter = -1
+  local train_learning_rate = -1
+  local max_iter = -1
+  local discount_factor = -1
+  local learning_rate = -1
+  local random_percentage = 0
+  local train = 'n'
+  local store_data = 'n'
+  local default_flag = 'n'
+  
+  print("Default setup? (y/n)")
+  default_flag = io.read()
+  if default_flag == 'y' then
+    max_iter = math.huge
+    train = 'y'
+    discount_factor = 0.5
+    learning_rate = 0.01
+    store_data = 'y'
+    dataset_size = math.huge
+    train_iter = 10
+    train_learning_rate = 0.001
+    random_percentage = 10
+    confirm = 'y'
+  end
+
+  while confirm ~= 'y' do
+    dataset_size = -1
+    train_iter = -1
+    train_learning_rate = -1
+    
+    print("Train from dataset? (y/n)")
+    train = io.read()
+    
+    if (train == 'y') then
+      print("Training iterations")
+      train_iter = tonumber(io.read())
+      if (train_iter == nil) then error("Invalid entry") end
+      
+      print("Learning rate for training")
+      train_learning_rate = tonumber(io.read())
+      if (train_learning_rate == nil) then error("Invalid entry") end
+      
+      print("Size of dataset")
+      dataset_size = tonumber(io.read())
+      if (dataset_size == nil) then error("Invalid entry") end
+    end
+    
+    print("Store new data from this experience? (y/n)")
+    store_data = io.read()
+    
+    print("Number of iterations")
+    max_iter = tonumber(io.read())
+    if (max_iter == nil) then error("Invalid entry") end
+  
+    print("Learning rate")
+    learning_rate = tonumber(io.read())
+    if (learning_rate == nil) then error("Invalid entry") end
+    
+    print("Random action percentage (integer)")
+    random_percentage = tonumber(io.read())
+    if (random_percentage == nil) then error("Invalid entry") end
+    
+    print("Discount percentage for future reward")
+    discount_factor = tonumber(io.read())
+    if (discount_factor == nil) then error("Invalid entry") end
+
+    print("\nTrain: " .. tostring(train == 'y'))
+    print("Training Iterations: " .. tostring(train_iter ~= -1 and train_iter or "None"))
+    print("Training Learning Rate: " .. tostring(train_learning_rate ~= -1 and train_learning_rate or "None"))
+    print("Dataset Size: " .. tostring(dataset_size ~= -1 and dataset_size or "None"))
+    print("Store Data: " .. tostring(store_data == 'y'))
+    print("Iterations: " .. tostring(max_iter))
+    print("Learning Rate: " .. tostring(learning_rate))
+    print("Random chance: " .. tostring(random_percentage))
+    print("Discount Factor: " .. tostring(discount_factor))
+    print("\nConfirm? (y/n)")
+    confirm = io.read()
+  end
+  return max_iter, train=='y', train_iter, train_learning_rate, dataset_size, store_data=='y', discount_factor, learning_rate, random_percentage
 end
 
 
@@ -153,34 +238,40 @@ local function main()
   local iteration = 0
   local new_score = 0
   local previous_score = 0
-  local discount = 1/2
-  local a = 1
+  local discount = 1/2  
+  local random_percentage = 0
+  
+  max_iter, train, train_iter, train_learning_rate, dataset_size, store_data, discount, learning_rate, random_percentage = prompt_user()
+  
   local dataset_name = "./datasets/dataset" .. tostring(os.date("%m-%d-%y;%H:%M")) .. ".t7"
   
-  train_from_datset(net, criterion, 10, 0.001)
+  if train then
+    train_from_datset(net, criterion, train_iter, train_learning_rate, dataset_size)
+  end
   
-  while a==1 do
+  while iteration <= max_iter do
     atrib = lfs.attributes("save1.dat")
     local new_file_size = atrib.size
     if (new_file_size > 5) then
       local input, new_score = process_features(score, num_features)
             
-      input, predicted_output, action = forward_prop(input, net)
+      input, predicted_output, action = forward_prop(input, net, random_percentage)
       
       if (iteration > 0) then
         local observed_output = torch.Tensor(previous_predicted_output:size()):copy(previous_predicted_output)
         observed_output[previous_action] = (new_score - previous_score) + discount * predicted_output[previous_action]
         print("Observed_reward: " .. tostring(observed_output))
         print("Action From Input: " .. tostring(previous_action))
-        back_prop(previous_input, previous_predicted_output, observed_output, net, criterion, 0.01)
-        update_data(dataset_name, input, observed_output)
+        back_prop(previous_input, previous_predicted_output, observed_output, net, criterion, learning_rate)
+        if store_data then
+          update_data(dataset_name, input, observed_output)
+          if (iteration % 200 == 0) then
+            dataset_name = "./datasets/dataset" .. tostring(os.date("%m-%d-%y;%H:%M")) .. ".t7"
+          end
+        end
 
         print("\nEND OF SET\n")
-        
-        if (iteration % 200 == 0) then
-          dataset_name = "./datasets/dataset" .. tostring(os.date("%m-%d-%y;%H:%M")) .. ".t7"
-        end
-        
+                
       end
 
       previous_input = input
@@ -198,11 +289,7 @@ local function main()
       print("\n\n")
             
       iteration = iteration + 1
-      
---      if (iteration >= 10800*3) then
---        a = 2
---      end
-      
+            
     end
   end  
     

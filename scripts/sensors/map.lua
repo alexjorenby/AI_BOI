@@ -12,8 +12,7 @@ function make_new_map(map, enemy_locations, room_items, fire)
   local room_height = room:GetGridHeight()
   local grid_size = room:GetGridSize()-1
   local isaac_pos = room:GetGridIndex(player.Position)
-  
-  
+    
   local start = 0
   
   if (room_width > 15 or room_height > 9) then      

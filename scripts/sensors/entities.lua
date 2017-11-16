@@ -6,20 +6,21 @@ function find_entities()
   local enemy_locations = {}
 	local fire = {}
 	local room_items = {}
+  local entity_offset = 23
 	i_counter = 0
   
   for ent, Entity in pairs(Isaac.GetRoomEntities()) do
 		if (Entity:IsVulnerableEnemy()) then
       local enemy_idx = room:GetGridIndex(Entity.Position)
-      enemy_locations[enemy_idx] = Entity.Type + 23
+      enemy_locations[enemy_idx] = Entity.Type + entity_offset
 		end
 		if (Entity ~= nil and Entity.Type == 33 and Entity.EntityCollisionClass ~= 0) then
       local fire_idx = room:GetGridIndex(Entity.Position)
-			fire[fire_idx] = Entity.Type + 23
+			fire[fire_idx] = Entity.Type + entity_offset
 		end		
     if (Entity ~= nil and Entity.Type == 5) then
       local item_idx = room:GetGridIndex(Entity.Position)
-      room_items[item_idx] = Entity.Type + 23
+      room_items[item_idx] = Entity.Type + entity_offset
       i_counter = i_counter + 1
     end
 	end
