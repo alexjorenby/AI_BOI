@@ -11,7 +11,7 @@ local operator = require("scripts.actions.movement")
 local fighter = require("scripts.actions.combat")
 local cartographer = require("scripts.sensors.map")
 --local helper = require("scripts.help")
---local sensor = require("scripts.planning.goal")
+local sensor = require("scripts.planning.goal")
 local collector = require("scripts.sensors.entities")
 
 game = Game()
@@ -26,6 +26,11 @@ end_game = 1
 command = -1
 
 custom_score = 0
+
+
+target_flag = 0
+
+
 
 
 local target = -1
@@ -49,7 +54,7 @@ function testMod:new_room_update()
 	else
 		item_time = 300
 	end
-  custom_score = custom_score + 30  
+  custom_score = (custom_score + 30)
   
 end
 
@@ -70,7 +75,7 @@ function testMod:update_agent()
 --  end
 
 	Isaac.RenderText("ITEM TIME: " .. tostring(item_time), 200, 25, 255, 0, 255, 255)
---  Isaac.RenderText("PMV: " .. tostring(player_velocity.X) .. " - " .. tostring(player_velocity.Y), 50, 25, 255, 0, 255, 255)
+  Isaac.RenderText("target_flag: " .. tostring(target_flag), 50, 25, 255, 0, 255, 255)
   Isaac.RenderText("Command: " .. tostring(command), 300, 25, 255, 0, 255, 255)
     
   if (frame_counter % 20 == 0) then
@@ -82,7 +87,7 @@ function testMod:update_agent()
 	operator.traverse_path(player, path)  
   
   temp = Isaac.LoadModData(testMod)
-  if (# temp < 8) then
+  if (# temp < 8 and tonumber(temp) ~= nil) then
     command = tonumber(temp)
   else
     command = command
@@ -96,7 +101,7 @@ function update_strategy()
   
   end_game = player:GetHearts() + player:GetSoulHearts() + player:GetBlackHearts() + player:GetEternalHearts() + player:GetExtraLives()
     
-  if (end_game <= 0 or item_time <= -5000) then
+  if (end_game <= 0 or item_time <= -10000) then
 --    custom_score = 0
     post_init_restart()
   end
@@ -107,13 +112,18 @@ function update_strategy()
   room_map = {}
   cartographer.make_new_map(room_map, collection[1], collection[3], collection[2])
   
+  local targets = fighter.Shoot_Tear(3)
+
 	curr_node = room:GetGridIndex(player.Position)
   
   if (curr_node == last_node) then
-    custom_score = custom_score - 10
+    custom_score = custom_score - 5
   end
     
   last_node = curr_node
+  
+  local chosen_door = sensor.find_door(player, room)
+  local door_prox = (chosen_door.Position - player.Position):Length()
   
   local str = Isaac.LoadModData(testMod)
   local iterator = 0
@@ -131,8 +141,22 @@ function update_strategy()
   local player_velocity = player.Velocity
   new_str = new_str .. tostring(player_velocity.X) .. "\n"
   new_str = new_str .. tostring(player_velocity.Y) .. "\n"
+  new_str = new_str .. tostring(player.Position.X) .. "\n"
+  new_str = new_str .. tostring(player.Position.Y) .. "\n"
+  new_str = new_str .. tostring(door_prox) .. "\n"
+  new_str = new_str .. tostring(room:GetType()) .. "\n"
+  new_str = new_str .. tostring(room:GetRoomShape()) .. "\n"
   
-
+  for idx, ent in pairs(targets) do
+    target_flag = ent[1]
+    if ent == nil or ent[1] == nil then
+      new_str = new_str .. tostring(-1) .. "\n"
+    else
+      new_str = new_str .. tostring(ent[2]) .. "\n"
+    end
+  end
+  
+  
   if (new_str ~= "") then
     str = new_str .. str
     Isaac.SaveModData(testMod, str)
@@ -141,7 +165,7 @@ function update_strategy()
   if (room:IsClear()) then
     aim_direction = 0
   else
-    return fighter.Shoot_Tear()
+    return targets[1][1]
   end
     
 end

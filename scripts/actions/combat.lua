@@ -5,33 +5,38 @@ local C = {}
 
 
 -- Helper for Shoot_Tear() --
-local function get_nearest_vulnerable_enemy()
+local function get_nearest_vulnerable_enemy(buffer_size)
 
-	local nearest_enemy = nil
-	local closest_distance = math.huge
+	local nearest_enemy = {}
 	local entities = Isaac.GetRoomEntities()
+  for i=1, buffer_size do
+    nearest_enemy[i] = {nil, math.huge} 
+  end
 
 	for _, entity in pairs(entities) do
 		if entity:IsVulnerableEnemy() then
 		 	local distance = entity.Position:Distance(player.Position)
-		 	if distance < closest_distance then
-		 		closest_distance = distance
-		 		nearest_enemy = entity
-	 		end
+      nearest_enemy[# nearest_enemy + 1] = { entity, distance }
 	 	end
 	end
+  
+  table.sort(nearest_enemy, function(a,b) return a[2] < b[2] end)
+  
+  local current_buf_size = # nearest_enemy
+  for j=buffer_size+1, current_buf_size do
+    nearest_enemy[j] = nil
+  end
 
 	return nearest_enemy
 end	
 
 
-local function Shoot_Tear()
-	
-	local target = get_nearest_vulnerable_enemy()
-	if (target ~= nil) then
-    aim(target)
+local function Shoot_Tear(buf_size)
+	local targets = get_nearest_vulnerable_enemy(buf_size)
+	if (targets[1] ~= nil and targets[1][1] ~= nil) then
+    aim(targets[1][1])
 	end
-  return target
+  return targets
 end
 
 
@@ -40,7 +45,6 @@ function aim(target)
 
   local Ax = player.Position.X - target.Position.X
   local Ay = player.Position.Y - target.Position.Y
-  
   if (math.abs(Ax) >= math.abs(Ay)) then
     if (Ax >= 0) then
       -- left

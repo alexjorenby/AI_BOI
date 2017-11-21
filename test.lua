@@ -81,6 +81,9 @@ local function process_features(previous_score, num_features)
     if (temp > 16 or i >= 136) then
       temp = temp * 10
     end
+    if (temp == 0 and i <=136) then
+      temp = -100
+    end
     input_buf[i] = temp
   end
   io.close(file)
@@ -121,19 +124,19 @@ local function train_from_datset(net, criterion, iterations, learning_rate, data
   for file in lfs.dir("./datasets") do
     if (# file >= 24) then
       local ds = torch.load("./datasets/" .. file)
-      for i=0, #ds do
+      for i = 0, #ds do
         local input = ds[i].data
         local output = ds[i].labels
-        dataset[i+data_offset] = { input, output }
+        dataset[# dataset + 1] = { input, output }
       end
+      data_offset = data_offset + # dataset
     end
-    
   end
   if dataset_size > # dataset then
     dataset_size = # dataset
   end
   function dataset:size() return dataset_size end
-  
+    
   if (dataset:size() >= 1) then
     local trainer = nn.StochasticGradient(net, criterion)
     trainer.learningRate = learning_rate
@@ -142,6 +145,50 @@ local function train_from_datset(net, criterion, iterations, learning_rate, data
     trainer:train(dataset)
   end
   
+end
+
+
+local function train_from_memory(net, criterion, iterations, learning_rate, batch_size)
+  local chosen_dataset = ""
+  local dir_size = 0
+  for file in lfs.dir("./datasets") do
+    dir_size = dir_size + 1
+  end
+  if dir_size >= 3 then
+    while chosen_dataset == "" do
+      local temp = ""
+      local x, y = lfs.dir("./datasets")
+      local stop = math.random(1, dir_size)
+      for i=1, stop do
+        temp = x(y)
+      end
+      if # temp > 5 then
+        chosen_dataset = temp
+      end
+    end
+    
+    local dataset = {}
+    local ds = torch.load("./datasets/" .. chosen_dataset)
+    if batch_size > #ds then
+      batch_size = #ds
+    end
+    while # dataset < batch_size do
+      local idx = math.random(1, #ds-1)
+      local input = ds[idx].data
+      local output = ds[idx].labels
+      dataset[# dataset + 1] = { input, output }
+    end
+    
+    function dataset:size() return # dataset end
+      
+    if (dataset:size() >= 1) then
+      local trainer = nn.StochasticGradient(net, criterion)
+      trainer.learningRate = learning_rate
+      trainer.maxIteration = iterations
+      trainer.shuffleIndices = true
+      trainer:train(dataset)
+    end
+  end  
 end
 
 
@@ -154,6 +201,7 @@ local function prompt_user()
   local discount_factor = -1
   local learning_rate = -1
   local random_percentage = 0
+  local batch_size = 0
   local train = 'n'
   local store_data = 'n'
   local default_flag = 'n'
@@ -170,6 +218,7 @@ local function prompt_user()
     train_iter = 10
     train_learning_rate = 0.001
     random_percentage = 10
+    batch_size = 10
     confirm = 'y'
   end
 
@@ -213,6 +262,10 @@ local function prompt_user()
     print("Discount percentage for future reward")
     discount_factor = tonumber(io.read())
     if (discount_factor == nil) then error("Invalid entry") end
+    
+    print("Memory batch size (integer)")
+    batch_size = tonumber(io.read())
+    if (batch_size == nil) then error("Invalid entry") end
 
     print("\nTrain: " .. tostring(train == 'y'))
     print("Training Iterations: " .. tostring(train_iter ~= -1 and train_iter or "None"))
@@ -221,17 +274,18 @@ local function prompt_user()
     print("Store Data: " .. tostring(store_data == 'y'))
     print("Iterations: " .. tostring(max_iter))
     print("Learning Rate: " .. tostring(learning_rate))
-    print("Random chance: " .. tostring(random_percentage))
+    print("Random Chance: " .. tostring(random_percentage))
     print("Discount Factor: " .. tostring(discount_factor))
+    print("Batch Size: " .. tostring(batch_size))
     print("\nConfirm? (y/n)")
     confirm = io.read()
   end
-  return max_iter, train=='y', train_iter, train_learning_rate, dataset_size, store_data=='y', discount_factor, learning_rate, random_percentage
+  return max_iter, train=='y', train_iter, train_learning_rate, dataset_size, store_data=='y', discount_factor, learning_rate, random_percentage, batch_size
 end
 
 
 local function main()
-  local num_features = 137
+  local num_features = 145
   local net, criterion = init_nn(num_features, 8)
   local atrib = lfs.attributes("save1.dat")
   local file_modified = atrib.size
@@ -241,8 +295,7 @@ local function main()
   local discount = 1/2  
   local random_percentage = 0
   
-  max_iter, train, train_iter, train_learning_rate, dataset_size, store_data, discount, learning_rate, random_percentage = prompt_user()
-  
+  max_iter, train, train_iter, train_learning_rate, dataset_size, store_data, discount, learning_rate, random_percentage, batch_size = prompt_user()
   local dataset_name = "./datasets/dataset" .. tostring(os.date("%m-%d-%y;%H:%M")) .. ".t7"
   
   if train then
@@ -259,8 +312,8 @@ local function main()
       
       if (iteration > 0) then
         local observed_output = torch.Tensor(previous_predicted_output:size()):copy(previous_predicted_output)
-        observed_output[previous_action] = (new_score - previous_score) + discount * predicted_output[previous_action]
-        print("Observed_reward: " .. tostring(observed_output))
+        observed_output[previous_action] = (new_score - previous_score) + discount * predicted_output[action]
+        print("Predicted reward: \n" .. tostring(previous_predicted_output))
         print("Action From Input: " .. tostring(previous_action))
         back_prop(previous_input, previous_predicted_output, observed_output, net, criterion, learning_rate)
         if store_data then
@@ -284,6 +337,10 @@ local function main()
       atrib = lfs.attributes("save1.dat")
       new_file_size = atrib.size
       file_modified = new_file_size
+ 
+ 
+      train_from_memory(net, criterion, 1, learning_rate * (0.1), batch_size)
+      
             
       print("Iteration: " .. tostring(iteration))
       print("\n\n")

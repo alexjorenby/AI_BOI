@@ -134,6 +134,7 @@ function is_valid(goal, D_map)
 end
 
 
+G.find_door = find_door
 G.find_goal = find_goal
 
 return G
