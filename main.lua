@@ -3,6 +3,7 @@ StartDebug()
 local testMod = RegisterMod("TestMod", 1)
 
 require "math"
+--socket = require("socket")
 
 require("enum.constants")
 
@@ -15,6 +16,7 @@ local sensor = require("scripts.planning.goal")
 local collector = require("scripts.sensors.entities")
 
 game = Game()
+seed = game:GetSeeds()
 room = game:GetRoom()
 tears = {}
 tears2 = {}
@@ -30,6 +32,8 @@ custom_score = 0
 
 target_flag = 0
 
+seedName = "XT1S Y1ZM"
+seed:SetStartSeed(seedName)
 
 
 
@@ -54,13 +58,19 @@ function testMod:new_room_update()
 	else
 		item_time = 300
 	end
-  custom_score = (custom_score + 30)
+  custom_score = (custom_score + ((30)/room_desc.VisitedCount))
   
 end
 
+xxx = 1
 
 function testMod:update_agent()
 	player = Isaac.GetPlayer(0)
+  
+  if (xxx == 1) then
+    Isaac.ExecuteCommand("seed XT1S Y1ZM")
+    xxx = 0
+  end
   
 	item_time = item_time - 1
 	frame_counter = frame_counter + 1
@@ -75,7 +85,7 @@ function testMod:update_agent()
 --  end
 
 	Isaac.RenderText("ITEM TIME: " .. tostring(item_time), 200, 25, 255, 0, 255, 255)
-  Isaac.RenderText("target_flag: " .. tostring(target_flag), 50, 25, 255, 0, 255, 255)
+  Isaac.RenderText("seed: " .. tostring(seed:GetStartSeedString()), 50, 25, 255, 0, 255, 255)
   Isaac.RenderText("Command: " .. tostring(command), 300, 25, 255, 0, 255, 255)
     
   if (frame_counter % 20 == 0) then
@@ -175,7 +185,10 @@ function post_init_restart()
   custom_score = custom_score - 30
   init_action = 0
   reset = 0
-  Isaac.ExecuteCommand("restart")
+  seed:SetStartSeed(seedName)
+  xxx = 1
+--  Isaac.ExecuteCommand("restart")
+  Isaac.ExecuteCommand("seed XT1S Y1ZM")
 end
 
 
