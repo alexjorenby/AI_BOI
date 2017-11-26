@@ -25,7 +25,7 @@ function find_entities()
     end
 	end
 	if (not room:IsClear()) then
-		item_time = 200 + i_counter * 75
+--		item_time = 200 + i_counter * 75
 	end
   
   return {enemy_locations, fire, room_items, i_counter}
