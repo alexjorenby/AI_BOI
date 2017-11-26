@@ -3,6 +3,7 @@ require 'nn'
 require 'lfs'
 require 'math'
 require 'os'
+require 'optim'
 
 
 local function init_nn(inputs, outputs)
@@ -120,7 +121,8 @@ local function train_from_datset(net, criterion, iterations, learning_rate, data
   local dsn = 1
   local j = 0
   
-  local data_offset = 0
+  local dataset_count = 1
+  
   for file in lfs.dir("./datasets") do
     if (# file >= 24) then
       local ds = torch.load("./datasets/" .. file)
@@ -129,33 +131,68 @@ local function train_from_datset(net, criterion, iterations, learning_rate, data
         local output = ds[i].labels
         dataset[# dataset + 1] = { input, output }
       end
-      data_offset = data_offset + # dataset
     end
   end
   if dataset_size > # dataset then
     dataset_size = # dataset
   end
+  
   function dataset:size() return dataset_size end
+  
+  print("Dataset size: " .. tostring(dataset_size))
+  
+  local datasetInputs = torch.DoubleTensor(dataset_size, 145)
+  local datasetOutputs = torch.DoubleTensor(dataset_size, 8)
+  
+  for i = 1, dataset_size do
+    local idx = math.random(1, # dataset)
+    local input = dataset[idx][1]
+    local output = dataset[idx][2]
+    
+    datasetInputs[dataset_count]:copy(input)
+    datasetOutputs[dataset_count]:copy(output)
+    dataset_count = dataset_count + 1
+  end
     
   if (dataset:size() >= 1) then
-    local trainer = nn.StochasticGradient(net, criterion)
-    trainer.learningRate = learning_rate
-    trainer.maxIteration = iterations
-    trainer.shuffleIndices = true
-    trainer:train(dataset)
+    params, gradParams = net:getParameters()
+    
+    local optimState = { learningRate = learning_rate }
+    
+    for i=0,iterations do
+    
+      function feval(params)
+        gradParams:zero()
+        local output = net:forward(datasetInputs)
+        local loss = criterion:forward(output, datasetOutputs)
+        local dloss_doutputs = criterion:backward(output, datasetOutputs)
+        net:backward(datasetInputs, dloss_doutputs)
+        print("Loss for iteration " .. tostring(i) .. ": " .. loss)
+        return loss, gradParams
+      end
+      optim.sgd(feval, params, optimState)
+    end
+    print("Done")
+
+--    local trainer = nn.StochasticGradient(net, criterion)
+--    trainer.learningRate = learning_rate
+--    trainer.maxIteration = iterations
+--    trainer.shuffleIndices = true
+--    trainer:train(dataset)
   end
   
 end
 
 
-local function train_from_memory(net, criterion, iterations, learning_rate, batch_size)
+local function train_from_memory(net, criterion, iterations, learning_rate, batch_size, dataset_name)
   local chosen_dataset = ""
   local dir_size = 0
   for file in lfs.dir("./datasets") do
     dir_size = dir_size + 1
   end
-  if dir_size >= 3 then
-    while chosen_dataset == "" do
+  if dir_size >= 4 then
+    size_check = 0
+    while ((chosen_dataset == "") or (("./datasets/" .. chosen_dataset) == dataset_name)) and (batch_size > size_check) do
       local temp = ""
       local x, y = lfs.dir("./datasets")
       local stop = math.random(1, dir_size)
@@ -164,30 +201,65 @@ local function train_from_memory(net, criterion, iterations, learning_rate, batc
       end
       if # temp > 5 then
         chosen_dataset = temp
+        local tempds = torch.load("./datasets/" .. chosen_dataset)
+        size_check = #tempds
       end
     end
-    
+    print(tostring("./datasets/" .. chosen_dataset) .. " " .. tostring(dataset_name))
+    print(tostring(("./datasets/" .. chosen_dataset) == dataset_name))
     local dataset = {}
     local ds = torch.load("./datasets/" .. chosen_dataset)
     if batch_size > #ds then
       batch_size = #ds
     end
-    while # dataset < batch_size do
-      local idx = math.random(1, #ds-1)
-      local input = ds[idx].data
-      local output = ds[idx].labels
-      dataset[# dataset + 1] = { input, output }
+    
+    local datasetInputs = torch.DoubleTensor(batch_size, 145)
+    local datasetOutputs = torch.DoubleTensor(batch_size, 8)
+    local dataset_count = 1
+    
+    while dataset_count <= batch_size do
+      local idx = math.random(1, #ds-1)      
+      datasetInputs[dataset_count] = ds[idx].data
+      datasetOutputs[dataset_count] = ds[idx].labels
+                  
+      dataset_count = dataset_count + 1
     end
     
-    function dataset:size() return # dataset end
+    a, b = pcall(function () return torch.max(datasetInputs:ne(datasetInputs)) > 0 end)
+    c, d = pcall(function () return torch.max(datasetOutputs:ne(datasetOutputs)) > 0 end)
+    
+    if ((not a or b) or (not c or d)) then
+      print("MEMORY ERROR")
+    else
+        
+      params, gradParams = net:getParameters()
       
-    if (dataset:size() >= 1) then
-      local trainer = nn.StochasticGradient(net, criterion)
-      trainer.learningRate = learning_rate
-      trainer.maxIteration = iterations
-      trainer.shuffleIndices = true
-      trainer:train(dataset)
+      local optimState = { learningRate = learning_rate }
+      
+      for i=0,iterations do
+      
+        function feval(params)
+          gradParams:zero()
+          local output = net:forward(datasetInputs)
+          local loss = criterion:forward(output, datasetOutputs)
+          local dloss_doutputs = criterion:backward(output, datasetOutputs)
+          net:backward(datasetInputs, dloss_doutputs)
+          print("Loss for iteration " .. tostring(i) .. ": " .. loss)
+          return loss, gradParams
+        end
+        optim.sgd(feval, params, optimState)
+      end
     end
+    print("Done")
+    
+--    function dataset:size() return # dataset end      
+--    if (dataset:size() >= 1) then
+--      local trainer = nn.StochasticGradient(net, criterion)
+--      trainer.learningRate = learning_rate
+--      trainer.maxIteration = iterations
+--      trainer.shuffleIndices = true
+--      trainer:train(dataset)
+--    end
   end  
 end
 
@@ -212,13 +284,13 @@ local function prompt_user()
     max_iter = math.huge
     train = 'y'
     discount_factor = 0.5
-    learning_rate = 0.01
+    learning_rate = 0.0001
     store_data = 'y'
-    dataset_size = math.huge
+    dataset_size = 70000
     train_iter = 10
-    train_learning_rate = 0.001
+    train_learning_rate = 0.0001
     random_percentage = 10
-    batch_size = 10
+    batch_size = 100
     confirm = 'y'
   end
 
@@ -309,11 +381,12 @@ local function main()
       local input, new_score = process_features(score, num_features)
             
       input, predicted_output, action = forward_prop(input, net, random_percentage)
+      update_cmd(action)
       
       if (iteration > 0) then
         local observed_output = torch.Tensor(previous_predicted_output:size()):copy(previous_predicted_output)
         observed_output[previous_action] = (new_score - previous_score) + discount * predicted_output[action]
-        print("Predicted reward: \n" .. tostring(previous_predicted_output))
+        print("Observed reward: \n" .. tostring(observed_output))
         print("Action From Input: " .. tostring(previous_action))
         back_prop(previous_input, previous_predicted_output, observed_output, net, criterion, learning_rate)
         if store_data then
@@ -332,15 +405,13 @@ local function main()
       previous_predicted_output = predicted_output
       previous_score = new_score
       
-      update_cmd(action)
-      
       atrib = lfs.attributes("save1.dat")
       new_file_size = atrib.size
       file_modified = new_file_size
  
- 
-      train_from_memory(net, criterion, 1, learning_rate * (0.1), batch_size)
-      
+      if (batch_size > 0) then
+        train_from_memory(net, criterion, 0, learning_rate * 0.001, batch_size, dataset_name)
+      end
             
       print("Iteration: " .. tostring(iteration))
       print("\n\n")
