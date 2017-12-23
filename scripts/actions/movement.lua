@@ -59,6 +59,8 @@ local function push_player(player, choice_direc)
 		move_right(player)
 	elseif (choice_direc == "up") then
 		move_up(player)
+  elseif (choice_direc == "stop") then
+    direction = "none"
 	else
 		direction = "none"			
 	end
@@ -88,6 +90,8 @@ function traverse_path(player, path)
     result = "downright"
   elseif (command == 8) then
     result = "downleft"
+  elseif (command == 9) then
+    result = "stop"
   end
 
   push_player(player, result)

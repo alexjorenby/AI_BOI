@@ -5,13 +5,16 @@ require "math"
 
 require("enum.constants")
 local pathfinder = require("scripts.planning.navigation")
-local helper = require("scripts.help")
+local helper = require("scripts.helper")
 
-function make_new_map(map, enemy_locations, room_items, fire)  
+function make_new_map(map, chosen_door, enemy_locations, room_items, fire)  
   local room_width = room:GetGridWidth()
   local room_height = room:GetGridHeight()
   local grid_size = room:GetGridSize()-1
   local isaac_pos = room:GetGridIndex(player.Position)
+  
+  
+  local door_index = room:GetGridIndex(chosen_door.Position)
     
   local start = 0
   
@@ -49,6 +52,9 @@ function make_new_map(map, enemy_locations, room_items, fire)
             
     if (grid_entity ~= nil) then
       grid_entity_type = grid_entity.Desc.Type
+      if grid_iterator ==  door_index then
+        grid_entity_type = 17
+      end
       map[grid_iterator] = grid_entity_type
     else
       map[grid_iterator] = 0

@@ -3,15 +3,12 @@ StartDebug()
 local testMod = RegisterMod("TestMod", 1)
 
 require "math"
---socket = require("socket")
-
 require("enum.constants")
-
 --local pathfinder = require("scripts.planning.navigation")
 local operator = require("scripts.actions.movement")
 local fighter = require("scripts.actions.combat")
 local cartographer = require("scripts.sensors.map")
---local helper = require("scripts.help")
+--local helper = require("scripts.helper")
 local sensor = require("scripts.planning.goal")
 local collector = require("scripts.sensors.entities")
 
@@ -24,19 +21,13 @@ item_time = 600
 frame_counter = 0
 room_map = {}
 end_game = 1
-
 command = -1
-
 custom_score = 0
-
-
+distance_check = 0
+pickup_table = {}
 target_flag = 0
-
 seedName = "XT1S Y1ZM"
 seed:SetStartSeed(seedName)
-
-
-
 local target = -1
 
 -- Calls on room entry to update item retrieval timer. --
@@ -44,12 +35,12 @@ local target = -1
 -- pick up the "leftovers" from a first-traversal, and --
 -- waste less time walking around.                     --
 function testMod:new_room_update()
---  reset = reset + 1
-
   game = Game()
   local level = game:GetLevel()
 	local room_desc = level:GetCurrentRoomDesc()
   room = game:GetRoom()
+  
+  pickup_table = {}
 
   tears = {}
   tears2 = {}
@@ -85,12 +76,12 @@ function testMod:update_agent()
 --  end
 
 	Isaac.RenderText("ITEM TIME: " .. tostring(item_time), 200, 25, 255, 0, 255, 255)
-  Isaac.RenderText("seed: " .. tostring(seed:GetStartSeedString()), 50, 25, 255, 0, 255, 255)
-  Isaac.RenderText("Command: " .. tostring(command), 300, 25, 255, 0, 255, 255)
+  Isaac.RenderText("Custom Score: " .. tostring(custom_score), 50, 25, 255, 0, 255, 255)
+  Isaac.RenderText("Distance Check: " .. tostring(distance_check), 300, 25, 255, 0, 255, 255)
     
   if (frame_counter % 20 == 0) then
     target = update_strategy()
-  end  
+  end 
 --  collector.collect_tears(tears, target)
 	cartographer.render_map(room_map)
   
@@ -107,6 +98,7 @@ end
 
 curr_node = 0
 last_node = 0
+stationary_counter = 1
 function update_strategy()
   
   end_game = player:GetHearts() + player:GetSoulHearts() + player:GetBlackHearts() + player:GetEternalHearts() + player:GetExtraLives()
@@ -118,22 +110,44 @@ function update_strategy()
   
 	D_map = {}  
   local collection = collector.find_entities()
+  local chosen_door = sensor.find_door(player, room)
   
   room_map = {}
-  cartographer.make_new_map(room_map, collection[1], collection[3], collection[2])
+  cartographer.make_new_map(room_map, chosen_door, collection[1], collection[3], collection[2])
   
   local targets = fighter.Shoot_Tear(3)
+  local sum_distance = 0
+  local sum_count = 0
+  for idx, ent in pairs(targets) do
+    if ent == nil or ent[1] == nil then
+      local f = 0
+    else
+      sum_distance = sum_distance + tonumber(ent[2])
+      sum_count = sum_count + 1
+    end
+  end
+  
+  if (sum_count > 0) then
+    distance_check = (3 - ((sum_distance/100) - 1.5*(1+(sum_count/5)))^2)
+--    custom_score = custom_score + (3 - ((sum_distance/100) - 4*(1+(sum_count/5)))^2)
+  end
 
 	curr_node = room:GetGridIndex(player.Position)
   
   if (curr_node == last_node) then
-    custom_score = custom_score - 5
+    if (room:IsClear()) then
+      custom_score = custom_score - 1
+    else
+      custom_score = custom_score - 0.5
+    end
   end
     
   last_node = curr_node
   
-  local chosen_door = sensor.find_door(player, room)
   local door_prox = (chosen_door.Position - player.Position):Length()
+  if (room:IsClear()) then
+--    custom_score = custom_score + (5 - (door_prox)/1000)
+  end
   
   local str = Isaac.LoadModData(testMod)
   local iterator = 0
@@ -153,10 +167,12 @@ function update_strategy()
   new_str = new_str .. tostring(player_velocity.Y) .. "\n"
   new_str = new_str .. tostring(player.Position.X) .. "\n"
   new_str = new_str .. tostring(player.Position.Y) .. "\n"
-  new_str = new_str .. tostring(door_prox) .. "\n"
-  new_str = new_str .. tostring(room:GetType()) .. "\n"
-  new_str = new_str .. tostring(room:GetRoomShape()) .. "\n"
+--  new_str = new_str .. tostring(door_prox) .. "\n"
+--  new_str = new_str .. tostring(room:GetType()) .. "\n"
+--  new_str = new_str .. tostring(room:GetRoomShape()) .. "\n"
+  new_str = new_str .. tostring(item_time) .. "\n"
   
+  local target_count = 0
   for idx, ent in pairs(targets) do
     target_flag = ent[1]
     if ent == nil or ent[1] == nil then
@@ -164,6 +180,11 @@ function update_strategy()
     else
       new_str = new_str .. tostring(ent[2]) .. "\n"
     end
+    target_count = target_count + 1
+  end
+  
+  while target_count < 3 do
+    new_str = new_str .. tostring(-1)
   end
   
   
@@ -182,7 +203,7 @@ end
 
 
 function post_init_restart()
-  custom_score = custom_score - 30
+  custom_score = custom_score - 200
   init_action = 0
   reset = 0
   seed:SetStartSeed(seedName)
@@ -248,6 +269,17 @@ function testMod:entity_killed(entity)
   end
 end
 
+function testMod:collectable_pickup(SelectedCollectible, PoolType, Decrease, Seed)
+  custom_score = custom_score + 100
+end
+
+function testMod:pickup_collision(Pickup, Collider, Low)
+  if pickup_table[Pickup.Index] == nil then
+    custom_score = custom_score + 10
+  end
+  pickup_table[Pickup.Index] = Pickup.Index
+end
+
 
 
 testMod:AddCallback(ModCallbacks.MC_POST_NEW_ROOM, testMod.new_room_update)
@@ -261,4 +293,8 @@ testMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, testMod.execute_shoot, InputHo
 testMod:AddCallback(ModCallbacks.MC_ENTITY_TAKE_DMG, testMod.damage_taken)
 
 testMod:AddCallback(ModCallbacks.MC_POST_ENTITY_KILL, testMod.entity_killed)
+
+testMod:AddCallback(ModCallbacks.MC_POST_GET_COLLECTIBLE, testMod.collectable_pickup)
+
+testMod:AddCallback(ModCallbacks.MC_PRE_PICKUP_COLLISION, testMod.pickup_collision)
 
