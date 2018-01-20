@@ -12,7 +12,7 @@ local trainer = require("trainer")
 
 
 local function main()
-  local num_features = 143
+  local num_features = 197
   local num_outputs = 9
   local net, criterion = neural_net.init_nn(num_features, num_outputs)
   local atrib = lfs.attributes("../save1.dat")
@@ -24,11 +24,15 @@ local function main()
   local random_percentage = 0
   local foresight = 1
   
-  max_iter, train, train_iter, train_learning_rate, dataset_size, store_data, discount, learning_rate, random_percentage, batch_size, foresight = communicate.prompt_user()
+  max_iter, train, train_iter, train_learning_rate, dataset_size, store_data, discount, learning_rate, random_percentage, batch_size, foresight, load_model = communicate.prompt_user()
   local dataset_name = "../datasets/dataset" .. tostring(os.date("%m-%d-%y;%H:%M")) .. ".t7"
   
+  if load_model then
+    net = torch.load("../models/model01-20-18;13:39.th")
+  end
+  
   if train then
-    trainer.train_from_datset(net, criterion, train_iter, train_learning_rate, dataset_size, num_features, num_outputs)
+    trainer.train_from_datset(net, criterion, train_iter, train_learning_rate, dataset_size, num_features, num_outputs, batch_size)
   end  
   
   local input_queue = queue.new()
@@ -40,7 +44,7 @@ local function main()
     if (new_file_size > 5) then
       
       if (batch_size > 0) then
-        trainer.train_from_memory(net, criterion, 0, learning_rate * 0.001, batch_size, dataset_name, num_features, num_outputs)
+        trainer.train_from_memory(net, criterion, 0, learning_rate, batch_size, dataset_name, num_features, num_outputs)
       end
 
       if (iteration % foresight == 0) then
@@ -77,8 +81,9 @@ local function main()
           end
         end
         local observed_output = torch.Tensor(target_predicted_output:size()):copy(target_predicted_output)
---        local observed_output = torch.zeros(previous_predicted_output:size())
-        observed_output[target_action] = (new_score - last_score) + sum_reward + (discount ^ pow * predicted_output[action])
+--        local observed_output = torch.zeros(target_predicted_output:size())
+        local reward = (new_score - last_score) + sum_reward + (discount ^ pow * predicted_output[action])
+        observed_output[target_action] = reward
         
         print("Target action: " .. tostring(target_action))
         print("Score difference: " .. tostring(new_score - target_score))
@@ -90,13 +95,37 @@ local function main()
 --        print("Predicted output: \n" .. tostring(predicted_output))
 --        print("Observed reward: \n" .. tostring(observed_output))
 --        print("Action From Input: " .. tostring(target_input[2]))
-        neural_net.back_prop(target_input, target_predicted_output, observed_output, net, criterion, learning_rate)        
-        
-        if store_data then
-          communicate.update_data(dataset_name, target_input, target_action, observed_output)
-          if (iteration % 200 == 0) then
-            dataset_name = "../datasets/dataset" .. tostring(os.date("%m-%d-%y;%H:%M")) .. ".t7"
+
+        local nan_error = 0
+
+        for i=1, num_features do
+          if target_input[i] ~= target_input[i] then
+            print("NOT A NUMBER ERROR")
+            nan_error = 1
           end
+        end
+        for j=1, 9 do
+          if ((target_predicted_output[j] ~= target_predicted_output[j]) or (observed_output[j] ~= observed_output[j])) then
+            print("NOT A NUMBER ERROR")
+            nan_error = 1
+          end
+        end
+
+        if nan_error == 0 and iteration > 10 then
+
+          neural_net.back_prop(target_input, target_predicted_output, observed_output, net, criterion, learning_rate, false)        
+          
+          if store_data and math.abs(reward) >= 2.2 then
+            communicate.update_data(dataset_name, target_input, target_action, observed_output)
+            if (iteration % 100 == 0) then
+              dataset_name = "../datasets/dataset" .. tostring(os.date("%m-%d-%y;%H:%M")) .. ".t7"
+            end
+            print("Memory saved")
+          else
+            print("Memory NOT saved")
+          end
+        else
+          print("SKIPPED BACK PROPOGATION DUE TO NAN_ERROR. MEMORY NOT SAVED")
         end
 
         print("\nEND OF SET\n")
@@ -125,3 +154,7 @@ end
 
 
 main()
+
+
+
+-- 2500 iterations: 16.8698
