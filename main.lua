@@ -49,7 +49,7 @@ function testMod:new_room_update()
 	else
 		item_time = 300
 	end
-  custom_score = (custom_score + ((30)/room_desc.VisitedCount))
+  custom_score = (custom_score + ((100)/room_desc.VisitedCount))
   
 end
 
@@ -59,7 +59,7 @@ function testMod:update_agent()
 	player = Isaac.GetPlayer(0)
   
   if (xxx == 1) then
-    Isaac.ExecuteCommand("seed XT1S Y1ZM")
+    Isaac.ExecuteCommand("seed ZX8Q WFES")
     xxx = 0
   end
   
@@ -77,12 +77,14 @@ function testMod:update_agent()
 
 	Isaac.RenderText("ITEM TIME: " .. tostring(item_time), 200, 25, 255, 0, 255, 255)
   Isaac.RenderText("Custom Score: " .. tostring(custom_score), 50, 25, 255, 0, 255, 255)
-  Isaac.RenderText("Distance Check: " .. tostring(distance_check), 300, 25, 255, 0, 255, 255)
     
-  if (frame_counter % 20 == 0) then
+  if (frame_counter % 15 == 0) then
     target = update_strategy()
   end 
---  collector.collect_tears(tears, target)
+  collector.collect_tears(tears)
+  
+--  Isaac.RenderText("Tears: " .. tostring(tears[1]), 300, 25, 255, 0, 255, 255)
+  
 	cartographer.render_map(room_map)
   
 	operator.traverse_path(player, path)  
@@ -115,7 +117,7 @@ function update_strategy()
   room_map = {}
   cartographer.make_new_map(room_map, chosen_door, collection[1], collection[3], collection[2])
   
-  local targets = fighter.Shoot_Tear(3)
+  local targets = fighter.Shoot_Tear(5)
   local sum_distance = 0
   local sum_count = 0
   for idx, ent in pairs(targets) do
@@ -135,11 +137,16 @@ function update_strategy()
 	curr_node = room:GetGridIndex(player.Position)
   
   if (curr_node == last_node) then
-    if (room:IsClear()) then
-      custom_score = custom_score - 1
-    else
-      custom_score = custom_score - 0.5
+    stationary_counter = stationary_counter + 1
+    if (stationary_counter > 1) then
+      if (room:IsClear()) then
+        custom_score = custom_score - 1
+      else
+        custom_score = custom_score - 0.5
+      end
     end
+  else
+    stationary_counter = 0
   end
     
   last_node = curr_node
@@ -152,6 +159,9 @@ function update_strategy()
   local str = Isaac.LoadModData(testMod)
   local iterator = 0
   local square_count = 0
+  
+  custom_score = custom_score + (item_time / 10000)
+  
   local new_str = tostring(custom_score) .. "\n"
 
   while (iterator < 450 and square_count < 135) do
@@ -171,6 +181,8 @@ function update_strategy()
 --  new_str = new_str .. tostring(room:GetType()) .. "\n"
 --  new_str = new_str .. tostring(room:GetRoomShape()) .. "\n"
   new_str = new_str .. tostring(item_time) .. "\n"
+  new_str = new_str .. tostring(curr_node) .. "\n"
+  new_str = new_str .. tostring(last_node) .. "\n"
   
   local target_count = 0
   for idx, ent in pairs(targets) do
@@ -183,10 +195,29 @@ function update_strategy()
     target_count = target_count + 1
   end
   
-  while target_count < 3 do
+  while target_count < 5 do
     new_str = new_str .. tostring(-1)
   end
   
+  local proj_count = 0
+  for ent, x in pairs(tears) do
+    local check = true
+    for a, b in pairs(x) do
+      if b == nil then
+        check = false
+      end
+    end
+    if proj_count <= 5 and check then      
+      new_str = new_str .. tostring(x["p_tear_fall_accel"]) .. "\n" .. tostring(x["p_tear_fall_speed"]) .. "\n" .. tostring(x["p_tear_flags"]) .. "\n" .. tostring(x["p_tear_height"]) .. "\n" .. tostring(x["p_homing_strength"]) .. "\n" .. tostring(x["p_acceleration"]) .. "\n" .. tostring(x["p_position"].X) .. "\n" .. tostring(x["p_position"].Y) .. "\n" .. tostring(x["p_velocity"].X) .. "\n" .. tostring(x["p_velocity"].Y) .. "\n"
+
+      proj_count = proj_count + 1
+    end
+  end
+  
+  while proj_count <= 5 do
+    new_str = new_str .. "0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n"
+    proj_count = proj_count + 1
+  end
   
   if (new_str ~= "") then
     str = new_str .. str
@@ -251,31 +282,31 @@ end
 function testMod:damage_taken(entity, damageamount, damageflag, damagesource)
   if (damagesource.Type == 2) then
     local t = damagesource.Entity
-    tears2[damagesource.Entity.Index] = damagesource.Entity.Index
-    if (tears[t.Index] ~= nil) then
-      tears[t.Index]["hit"] = true
-    end
-    custom_score = custom_score + 9
+--    tears2[damagesource.Entity.Index] = damagesource.Entity.Index
+--    if (tears[t.Index] ~= nil) then
+--      tears[t.Index]["hit"] = true
+--    end
+    custom_score = custom_score + 36
   end
   if (entity.Type == 1) then
-    custom_score = custom_score - 15
+    custom_score = custom_score - 30
   end
 end
 
 
 function testMod:entity_killed(entity)
   if (entity:isvulnerableEnemy()) then
-    custom_score = custom_score + 15
+    custom_score = custom_score + 30
   end
 end
 
 function testMod:collectable_pickup(SelectedCollectible, PoolType, Decrease, Seed)
-  custom_score = custom_score + 100
+  custom_score = custom_score + 200
 end
 
 function testMod:pickup_collision(Pickup, Collider, Low)
   if pickup_table[Pickup.Index] == nil then
-    custom_score = custom_score + 10
+    custom_score = custom_score + 20
   end
   pickup_table[Pickup.Index] = Pickup.Index
 end
