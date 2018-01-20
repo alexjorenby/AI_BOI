@@ -6,13 +6,14 @@ local N = {}
 
 local function init_nn(inputs, outputs)
   local net = nn.Sequential()
-  net:add(nn.Linear(inputs, 200))
-  net:add(nn.Tanh())
-  net:add(nn.Linear(200, 500))
-  net:add(nn.Tanh())
-  net:add(nn.Linear(500, 900))
-  net:add(nn.Tanh())
-  net:add(nn.Linear(900, outputs))
+  net:add(nn.Normalize(1))
+  net:add(nn.Linear(inputs, 900, true))
+--  net:add(nn.Sigmoid())
+  net:add(nn.Linear(900, 900, true))
+--  net:add(nn.Sigmoid())
+  net:add(nn.Linear(900, 900, true))
+  net:add(nn.Sigmoid())
+  net:add(nn.Linear(900, outputs, true))
   
   local criterion = nn.MSECriterion()
   return net, criterion
@@ -44,17 +45,33 @@ local function forward_prop(input, net, nth_best, random_percentage, override_ac
 end
 
 
-local function back_prop(input, predicted_output, actual_output, net, criterion, learning_rate)
+total_error = 0
+examples = 0
+total_error2 = 0
+examples2 = 0
+
+
+local function back_prop(input, predicted_output, actual_output, net, criterion, learning_rate, training)
   
   local err = criterion:forward(net:forward(input), actual_output)
   local gradOutput = criterion:backward(predicted_output, actual_output)
   net:zeroGradParameters()
   net:backward(input, gradOutput)
   net:updateParameters(learning_rate)
+  
+  if (training == false) then
+    total_error = total_error + err
+    examples = examples + 1
+    print("Average Error: " .. tostring(total_error/examples) .. " Error: " .. tostring(err))
+  else
+    total_error2 = total_error2 + err
+    examples2 = examples2 + 1
+    print("Average Error: " .. tostring(total_error2/examples2) .. " Error: " .. tostring(err))
+  end
     
 --  print("Predicted Output: " .. tostring(predicted_output))  
 --  print("Actual Output: " .. tostring(actual_output))
-  print("Error: \n" .. tostring(err))
+--  print("Error: \n" .. tostring(err))
 --  print("Rand Chance: " ..tostring(rand_test))
 
 end
