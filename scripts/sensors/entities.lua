@@ -6,7 +6,7 @@ function find_entities()
   local enemy_locations = {}
 	local fire = {}
 	local room_items = {}
-  local entity_offset = 23
+  local entity_offset = 24
 	i_counter = 0
   
   for ent, Entity in pairs(Isaac.GetRoomEntities()) do
@@ -33,24 +33,31 @@ function find_entities()
 end
 
 
-function collect_tears(tears, target)
+function collect_tears(tears)
+  local tear_count = 0
   for ent, Entity in pairs(Isaac.GetRoomEntities()) do
-    if (Entity.Type == 2) then
+    if (Entity.Type == 9 and tear_count < 10) then
       local idx = Entity.Index
-      if (tears[idx] == nil and target ~= nil and target ~= -1) then
+      local proj = Entity:ToProjectile()
+      if (tears[idx] == nil) then
         
         tears[idx] = {index = idx, 
-                      p_position = player.Position, 
-                      p_velocity = player.Velocity, 
-                      p_shot_speed = player.ShotSpeed, 
-                      p_tear_fall_accel = player.TearFallingAcceleration, 
-                      p_tear_fall_speed = player.TearFallingSpeed, 
-                      p_tear_flags = player.TearFlags, 
-                      p_tear_height = player.TearHeight, 
-                      hit = false, 
-                      t_index = target.Index, 
-                      t_position = target.Position
-                      }
+--                      p_position = player.Position, 
+--                      p_velocity = player.Velocity, 
+--                      p_shot_speed = player.ShotSpeed, 
+                      p_tear_fall_accel = proj.FallingAccel, 
+                      p_tear_fall_speed = proj.FallingSpeed, 
+                      p_tear_flags = proj.ProjectileFlags, 
+                      p_tear_height = proj.Height, 
+                      p_homing_strength = proj.HomingStrength,
+                      p_acceleration = proj.Acceleration,
+                      p_position = proj.Position,
+                      p_velocity = proj.Velocity
+--                      hit = false, 
+--                      t_index = target.Index, 
+--                      t_position = target.Position
+                    }
+        tear_count = tear_count + 1
       end
     end
   end
