@@ -37,6 +37,7 @@ local function prompt_user()
   local foresight = 1
   local train = 'n'
   local store_data = 'n'
+  local load_model = 'n'
   local default_flag = 'n'
   
   print("Default setup? (y/n)")
@@ -44,15 +45,16 @@ local function prompt_user()
   if default_flag == 'y' then
     max_iter = math.huge
     train = 'y'
-    discount_factor = 0.5
-    learning_rate = 0.001
+    discount_factor = 0.7
+    learning_rate = 0.1
     store_data = 'y'
-    dataset_size = 50000
+    dataset_size = 500000
     train_iter = 10
-    train_learning_rate = 0.0001
+    train_learning_rate = 0.01
     random_percentage = 10
-    batch_size = 10
-    foresight = 10
+    batch_size = 1
+    foresight = 5
+    load_model = 'y'
     confirm = 'y'
   end
 
@@ -60,6 +62,9 @@ local function prompt_user()
     dataset_size = -1
     train_iter = -1
     train_learning_rate = -1
+    
+    print("Load from model? (y/n)")
+    load_model = io.read()
     
     print("Train from dataset? (y/n)")
     train = io.read()
@@ -105,6 +110,7 @@ local function prompt_user()
     foresight = tonumber(io.read())
     if (foresight == nil) then error("Invalid entry") end
 
+    print("\nLoad Model: " .. tostring(load_model == 'y'))
     print("\nTrain: " .. tostring(train == 'y'))
     print("Training Iterations: " .. tostring(train_iter ~= -1 and train_iter or "None"))
     print("Training Learning Rate: " .. tostring(train_learning_rate ~= -1 and train_learning_rate or "None"))
@@ -119,7 +125,7 @@ local function prompt_user()
     print("\nConfirm? (y/n)")
     confirm = io.read()
   end
-  return max_iter, train=='y', train_iter, train_learning_rate, dataset_size, store_data=='y', discount_factor, learning_rate, random_percentage, batch_size, foresight
+  return max_iter, train=='y', train_iter, train_learning_rate, dataset_size, store_data=='y', discount_factor, learning_rate, random_percentage, batch_size, foresight, load_model=='y'
 end
 
 

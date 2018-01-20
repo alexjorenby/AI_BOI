@@ -13,57 +13,6 @@ function random_chance(action, action_table, odds, nb, outputs)
 end
 
 
-local function train_from_datset(net, criterion, iterations, learning_rate, dataset_size, inputs, outputs)
-  local dataset = {}
-  local dsn = 1
-  local j = 0
-  
-  local dataset_count = 1
-  
-  for file in lfs.dir("../datasets") do
-    if (# file >= 24) then
-      local ds = torch.load("../datasets/" .. file)
-      for i = 0, #ds do
-        local input = ds[i].data
-        local output = ds[i].labels
-        local action = ds[i].action
-        dataset[# dataset + 1] = { input, output, action }
-      end
-    end
-  end
-  if dataset_size > # dataset then
-    dataset_size = # dataset
-  end
-  
-  function dataset:size() return dataset_size end
-  
-  print("Dataset size: " .. tostring(dataset_size))
-  
-  local datasetInputs = torch.DoubleTensor(dataset_size, inputs)
-  local datasetOutputs = torch.DoubleTensor(dataset_size, outputs)
-  
-  for iter = 1, iterations do
-    for i = 1, dataset_size do
-      local idx = math.random(1, # dataset)
-      local inputO = dataset[idx][1]
-      local output = dataset[idx][2]
-      local override_action = dataset[idx][3]
-      
-      local input, predicted_output = neural_net.forward_prop(inputO, net, 1, 0, override_action, outputs)
-      print("predicted_output: \n" .. tostring(predicted_output))
-      print("output: \n" .. tostring(output))
-      print("action: " .. tostring(override_action))
-      
-      neural_net.back_prop(input, predicted_output, output, net, criterion, learning_rate)
-      
-    end
-  end
-  
-  print("Dataset size: " .. tostring(dataset_size))
-
-end
-
-
 local function train_from_memory(net, criterion, iterations, learning_rate, batch_size, dataset_name, inputs, outputs)
   local chosen_dataset = ""
   local dir_size = 0
@@ -102,17 +51,72 @@ local function train_from_memory(net, criterion, iterations, learning_rate, batc
       local override_action = ds[idx].action
 
       local input, predicted_output = neural_net.forward_prop(inputO, net, 1, 0, override_action, outputs)
-      print("predicted_output: \n" .. tostring(predicted_output))
-      print("output: \n" .. tostring(output))
-      print("action: " .. tostring(override_action))
+--      print("predicted_output: \n" .. tostring(predicted_output))
+--      print("output: \n" .. tostring(output))
+--      print("action: " .. tostring(override_action))
       
-      neural_net.back_prop(input, predicted_output, output, net, criterion, learning_rate)
+      neural_net.back_prop(input, predicted_output, output, net, criterion, learning_rate * 0.01, true)
 
       dataset_count = dataset_count + 1
     end    
     print("Done")
     
   end  
+end
+
+
+local function train_from_datset(net, criterion, iterations, learning_rate, dataset_size, inputs, outputs, batch_size)
+  local dataset = {}
+  local dsn = 1
+  local j = 0
+  
+  local dataset_count = 1
+  
+  for file in lfs.dir("../datasets") do
+    if (# file >= 24) then
+      local ds = torch.load("../datasets/" .. file)
+      for i = 0, #ds do
+        local input = ds[i].data
+        local output = ds[i].labels
+        local action = ds[i].action
+        dataset[# dataset + 1] = { input, output, action }
+      end
+    end
+  end
+  if dataset_size > # dataset then
+    dataset_size = # dataset
+  end
+  
+  function dataset:size() return dataset_size end
+  
+  print("Dataset size: " .. tostring(dataset_size))
+  
+  local datasetInputs = torch.DoubleTensor(dataset_size, inputs)
+  local datasetOutputs = torch.DoubleTensor(dataset_size, outputs)
+  
+  for iter = 1, iterations do
+    for i = 1, dataset_size do
+      local idx = math.random(1, # dataset)
+      local inputO = dataset[idx][1]
+      local output = dataset[idx][2]
+      local override_action = dataset[idx][3]
+      
+      local input, predicted_output = neural_net.forward_prop(inputO, net, 1, 0, override_action, outputs)
+--      print("predicted_output: \n" .. tostring(predicted_output))
+--      print("output: \n" .. tostring(output))
+--      print("action: " .. tostring(override_action))
+      neural_net.back_prop(input, predicted_output, output, net, criterion, learning_rate, true)      
+      
+--      train_from_memory(net, criterion, iterations, learning_rate, batch_size, dataset_name, inputs, outputs)
+      
+      
+    end
+  end
+  
+  print("Dataset size: " .. tostring(dataset_size))
+  
+  torch.save("../models/model" .. tostring(os.date("%m-%d-%y;%H:%M")) .. ".th", net)
+
 end
 
 
