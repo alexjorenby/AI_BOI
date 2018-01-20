@@ -52,9 +52,15 @@ function make_new_map(map, chosen_door, enemy_locations, room_items, fire)
             
     if (grid_entity ~= nil) then
       grid_entity_type = grid_entity.Desc.Type
-      if grid_iterator ==  door_index then
-        grid_entity_type = 17
+      if grid_entity_type == 16 then
+        local ge_door = grid_entity:ToDoor()
+        if ge_door:GetVariant() == 7 then
+          grid_entity_type = 15
+        end
       end
+--      if grid_iterator ==  door_index then
+--        grid_entity_type = 17
+--      end
       map[grid_iterator] = grid_entity_type
     else
       map[grid_iterator] = 0
