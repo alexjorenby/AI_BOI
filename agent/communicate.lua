@@ -45,16 +45,16 @@ local function prompt_user()
   if default_flag == 'y' then
     max_iter = math.huge
     train = 'y'
-    discount_factor = 0.7
-    learning_rate = 0.1
+    discount_factor = 0.9
+    learning_rate = 0.03
     store_data = 'y'
     dataset_size = 500000
     train_iter = 10
-    train_learning_rate = 0.01
+    train_learning_rate = 0.0001
     random_percentage = 10
     batch_size = 1
-    foresight = 5
-    load_model = 'y'
+    foresight = 10
+    load_model = 'n'
     confirm = 'y'
   end
 
