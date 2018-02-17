@@ -23,13 +23,17 @@ local function find_door(player, room)
 	local found_doors = {}
 	local target_index = 0
 	local visited_min = math.huge
+  
+  local door_table = { -1, -1, -1, -1, -1, -1, -1, -1 }
+  
 	for i=0,8 do
 		if (pcall(function () door = room:GetDoor(doors[i]) end)) then
 			if (pcall(function () door_exists = door.TargetRoomIndex end)) then
-
+        
 				adj_room_index = door.TargetRoomIndex
 				local next_room_desc = level:GetRoomByIdx(adj_room_index)
 				local visited = next_room_desc.VisitedCount
+        door_table[i+1] = visited
 
 				if (visited < 1) then
 					-- Rooms we are currently avoiding:  
@@ -68,16 +72,17 @@ local function find_door(player, room)
 	end
 
 	-- If you haven't found a new room to move to, move to the previous one and continue the same search.
-	if (target_index == 0) then
-		return visited_door
-	end
+--	if (target_index == 0) then
+--		return visited_door
+--	end
 
 	-- This was causing problems earlier, however; currently the door sweep is handling this.
 	-- Leaving in for documentation. 
 	--if (found_doors[0]:IsKeyFamiliarTarget() and player:GetNumKeys() > 0) then
 	--	return found_doors[0]
 	--end
-	return found_doors[0]
+--	return found_doors[0]
+  return door_table
 	
 end
 

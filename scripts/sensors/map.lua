@@ -14,7 +14,7 @@ function make_new_map(map, chosen_door, enemy_locations, room_items, fire)
   local isaac_pos = room:GetGridIndex(player.Position)
   
   
-  local door_index = room:GetGridIndex(chosen_door.Position)
+--  local door_index = room:GetGridIndex(chosen_door.Position)
     
   local start = 0
   
