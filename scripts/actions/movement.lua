@@ -62,7 +62,7 @@ local function push_player(player, choice_direc)
   elseif (choice_direc == "stop") then
     direction = "none"
 	else
-		direction = "none"			
+		direction = "restart"			
 	end
 end
 
@@ -92,6 +92,8 @@ function traverse_path(player, path)
     result = "downleft"
   elseif (command == 9) then
     result = "stop"
+  elseif (command == 10) then
+    result = "restart"
   end
 
   push_player(player, result)
