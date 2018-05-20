@@ -33,13 +33,18 @@ function find_entities()
 end
 
 
-function collect_tears(tears)
+function collect_tears(tears, blood_tears)
   local tear_count = 0
   for ent, Entity in pairs(Isaac.GetRoomEntities()) do
-    if (Entity.Type == 9 and tear_count < 10) then
+    if (Entity.Type == 9) then
       local idx = Entity.Index
       local proj = Entity:ToProjectile()
-      if (tears[idx] == nil) then
+      
+      local proj_idx = room:GetGridIndex(proj.Position)
+      
+      blood_tears[proj_idx] = proj.Height
+      
+      if (tears[idx] == nil and tear_count < 10) then
         
         tears[idx] = {index = idx, 
 --                      p_position = player.Position, 

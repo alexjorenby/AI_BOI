@@ -2,7 +2,7 @@ local C = {}
 
 
 local function update_cmd(command)
-  local cmd_file = io.open("../save1.dat", "w+")
+  local cmd_file = io.open("./save1.dat", "w+")
   cmd_file.write(cmd_file, tostring(command))
   cmd_file.close()
 end
@@ -33,7 +33,7 @@ local function prompt_user()
   local discount_factor = -1
   local learning_rate = -1
   local random_percentage = 0
-  local batch_size = 0
+  local batch_size = 1
   local foresight = 1
   local train = 'n'
   local store_data = 'n'
@@ -44,17 +44,17 @@ local function prompt_user()
   default_flag = io.read()
   if default_flag == 'y' then
     max_iter = math.huge
-    train = 'y'
-    discount_factor = 0.9
-    learning_rate = 0.03
+    train = 'n'
+    discount_factor = 0.7
+    learning_rate = 0.9
     store_data = 'y'
     dataset_size = 500000
     train_iter = 10
-    train_learning_rate = 0.0001
-    random_percentage = 10
-    batch_size = 1
-    foresight = 10
-    load_model = 'n'
+    train_learning_rate = 0.9
+    random_percentage = 5
+    batch_size = 0
+    foresight = 5
+    load_model = 'y'
     confirm = 'y'
   end
 
@@ -129,20 +129,37 @@ local function prompt_user()
 end
 
 
-local function process_features(previous_score, num_features)
-  local file = io.open("../save1.dat", "r")
+local function process_features(depth, width, height)
+  local file = io.open("./save1.dat", "r")
   io.input(file)
 
   local score = tonumber(io.read())  
-  local input_buf = torch.Tensor(num_features)
+  local input_buf = torch.Tensor(depth, height, width)
   local temp = 0
-  for i=1,num_features-1 do
-    temp = tonumber(io.read())
-    input_buf[i] = temp
+  
+  for i=1,depth do
+    for j=1,height do
+      for k=1,width do
+        temp = tonumber(io.read())
+--        print(tostring(i) .. " " .. tostring(j) .. " " .. tostring(k))
+        input_buf[i][j][k] = temp
+      end
+    end
   end
+
   io.close(file)
   
-  return input_buf, score
+  return input_buf, score  
+  
+end
+
+
+
+local function record_score(previous_score)
+  local the_file = io.open("../loop.txt", "a+")
+  local ps = tostring(previous_score) .. ",\n"
+  the_file.write(the_file, ps)
+  the_file.close()
 end
 
 
@@ -150,6 +167,7 @@ C.update_cmd = update_cmd
 C.update_data = update_data
 C.prompt_user = prompt_user
 C.process_features = process_features
+C.record_score = record_score
 
 return C
 

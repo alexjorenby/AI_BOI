@@ -1,72 +1,58 @@
 local T = {}
-local neural_net = require("neural_net")
+local neural_net = require("./neural_net")
 
+local DatasetDirectory = "./datasets"
 
 function random_chance(action, action_table, odds, nb, outputs) 
-  local nth_best = nb
   if (math.random(0,100) <= odds) then
-    nth_best = math.random(1, outputs)
+    nb = math.random(1, outputs)
   end
---  print("Nth best from specific random chance: " .. tostring(nth_best))
-  action = action_table[nth_best][1]
+  action = action_table[nb][1]
   return action
 end
 
 
-local function train_from_memory(net, criterion, iterations, learning_rate, batch_size, dataset_name, inputs, outputs, input, output)
+local function train_from_memory(net, criterion, iterations, learning_rate, batch_size, dataset_name, num_features, num_outputs, input, output)
   local chosen_dataset = ""
   local dir_size = 0
   
-  for file in lfs.dir("../datasets") do
+  for file in lfs.dir(DatasetDirectory) do
     dir_size = dir_size + 1
   end
-  if dir_size >= 14 then
-  
-    local best = math.huge
-    local best_dataset = nil
-    local temp = 0
-    local idx = 0
-    for file in lfs.dir("../datasets") do
+  if dir_size >= 15 then
+      
+    local datasets = {}
+    
+    for file in lfs.dir(DatasetDirectory) do
       if file:len() > 4 then
-        x = torch.load('../datasets/' .. file)
-        idx = math.random(0, #x-1)
-        temp = math.abs(torch.sum(input[{{1,135}}] - x[idx].data[{{1,135}}]))
-        if temp < best then
-          best = temp
-          best_dataset = x
-        end
+        datasets[#datasets+1] = file
       end
     end
     
-    local sub_best = math.huge
-    local sub_best_dataset = nil
-    local sub_temp = 0
-    local sub_idx = 0    
-    for i=0, # best_dataset do
-      sub_temp = math.abs(torch.sum(input[{{1,135}}] - best_dataset[i].data[{{1,135}}]))
-      if sub_temp < sub_best then
-        sub_best = temp
-        sub_best_dataset = best_dataset[i]
-      end
-    end
+    table.sort(datasets, function(a,b) return a > b end)
     
-    local datasetInputs = torch.DoubleTensor(batch_size, inputs)
-    local datasetOutputs = torch.DoubleTensor(batch_size, outputs)
+    local Dataset = torch.load(DatasetDirectory .. "/" .. datasets[math.random(1,12)])
     
-    local inputO = sub_best_dataset.data
---    local output = best_dataset.labels
-    local override_action = sub_best_dataset.action
-    local passed_output = torch.Tensor(output:size()):copy(output)
-    passed_output[override_action] = sub_best_dataset.labels[override_action]
+    local best_dataset = Dataset[math.random(0,#Dataset-1)]
     
-    local input, predicted_output = neural_net.forward_prop(inputO, net, 1, 0, override_action, outputs)
---      print("predicted_output: \n" .. tostring(predicted_output))
---      print("output: \n" .. tostring(output))
---      print("action: " .. tostring(override_action))
-    
-    neural_net.back_prop(input, predicted_output, passed_output, net, criterion, learning_rate * 0.1, true)
+    if (best_dataset ~= nil) then
+          
+      local datasetInputs = torch.DoubleTensor(batch_size, num_features)
+      local datasetOutputs = torch.DoubleTensor(batch_size, num_outputs)
+      
+      local inputO = best_dataset.data
+      local override_action = best_dataset.action
+      local passed_output = torch.Tensor(output:size()):copy(output)
+      passed_output[override_action] = best_dataset.labels[override_action]
+      
+      local input, predicted_output = neural_net.forward_prop(inputO, net, 1, 0, override_action, outputs)
+      
+      neural_net.back_prop(input, predicted_output, passed_output, net, criterion, learning_rate, true)
 
-    print("Done")
+    else
+--      print("Skipped training from memory, nil error")
+    end
+
   end
 end
 
@@ -75,12 +61,12 @@ local function train_from_datset(net, criterion, iterations, learning_rate, data
   local dataset = {}
   local dsn = 1
   local j = 0
-  
+    
   local dataset_count = 1
   
-  for file in lfs.dir("../datasets") do
+  for file in lfs.dir(DatasetDirectory) do
     if (# file >= 24) then
-      local ds = torch.load("../datasets/" .. file)
+      local ds = torch.load(DatasetDirectory .. "/" .. file)
       for i = 0, #ds do
         local input = ds[i].data
         local output = ds[i].labels
@@ -108,20 +94,20 @@ local function train_from_datset(net, criterion, iterations, learning_rate, data
       local override_action = dataset[idx][3]
       
       local input, predicted_output = neural_net.forward_prop(inputO, net, 1, 0, override_action, outputs)
---      print("predicted_output: \n" .. tostring(predicted_output))
---      print("output: \n" .. tostring(output))
---      print("action: " .. tostring(override_action))
-      neural_net.back_prop(input, predicted_output, output, net, criterion, learning_rate, true)      
+            
+      local reward = output[override_action]
+      local modified_output = torch.Tensor(predicted_output:size()):copy(predicted_output)
+      modified_output[override_action] = reward
       
---      train_from_memory(net, criterion, iterations, learning_rate, batch_size, dataset_name, inputs, outputs)
-      
-      
+      neural_net.back_prop(input, predicted_output, modified_output, net, criterion, learning_rate, true)      
+         
+      print(i)
     end
   end
   
   print("Dataset size: " .. tostring(dataset_size))
   
-  torch.save("../models/model" .. tostring(os.date("%m-%d-%y;%H:%M")) .. ".th", net)
+  torch.save("./models/model" .. tostring(os.date("%m-%d-%y;%H:%M")) .. ".th", net)
 
 end
 

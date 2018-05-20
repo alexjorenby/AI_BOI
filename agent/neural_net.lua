@@ -4,16 +4,30 @@ require 'nn'
 local N = {}
 
 
-local function init_nn(inputs, outputs)
+local function init_nn(depth, height, width)
   local net = nn.Sequential()
-  net:add(nn.Normalize(1))
-  net:add(nn.Linear(inputs, 900, true))
+  
+--  net:add(nn.Normalize(1))
+--  net:add(nn.Linear(inputs, 1149, true))
 --  net:add(nn.Sigmoid())
-  net:add(nn.Linear(900, 800, true))
+--  net:add(nn.Linear(1149, 419, true))
 --  net:add(nn.Sigmoid())
-  net:add(nn.Linear(800, 700, true))
-  net:add(nn.Sigmoid())
-  net:add(nn.Linear(700, outputs, true))
+--  net:add(nn.Linear(419, 1479, true))
+-- net:add(nn.SoftMax())
+--  net:add(nn.Linear(1479, outputs, true))
+  
+  net:add(nn.SpatialConvolution(4,5,3,3))
+  net:add(nn.ReLU())
+--  net:add(nn.SpatialMaxPooling(2,2,2,2))
+  net:add(nn.SpatialConvolution(5,5,2,2))
+  net:add(nn.ReLU())
+  net:add(nn.SpatialConvolution(5,4,5,2))
+  net:add(nn.ReLU())
+  net:add(nn.SpatialConvolution(4,4,2,4))
+--  net:add(nn.ReLU())
+  net:add(nn.View(56))
+  net:add(nn.Linear(56, 45))
+--  net:add(nn.Linear(5,3))
   
   local criterion = nn.MSECriterion()
   return net, criterion
@@ -53,22 +67,22 @@ examples2 = 0
 
 local function back_prop(input, predicted_output, actual_output, net, criterion, learning_rate, training)
   
-  local err = criterion:forward(net:forward(input), actual_output)
-  local gradOutput = criterion:backward(predicted_output, actual_output)
+  local err = criterion:forward(predicted_output, actual_output)
   net:zeroGradParameters()
+  local gradOutput = criterion:backward(predicted_output, actual_output)
   net:backward(input, gradOutput)
   net:updateParameters(learning_rate)
-  
+    
   if (training == false) then
     total_error = total_error + err
     examples = examples + 1
-    print("Average Error: " .. tostring(total_error/examples) .. " Error: " .. tostring(err))
+--    print("Average Error: " .. tostring(total_error/examples) .. " Error: " .. tostring(err) )
   else
     total_error2 = total_error2 + err
     examples2 = examples2 + 1
     print("Average Error: " .. tostring(total_error2/examples2) .. " Error: " .. tostring(err))
   end
-    
+      
 --  print("Predicted Output: " .. tostring(predicted_output))  
 --  print("Actual Output: " .. tostring(actual_output))
 --  print("Error: \n" .. tostring(err))

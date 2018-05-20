@@ -74,23 +74,23 @@ function traverse_path(player, path)
 	local onY = false
 	local acc = 9
 
-  if (command == 1) then
+  if (command == 1 or command == 10 or command == 11 or command == 12 or command == 13) then
 		result = "up"
-  elseif (command == 2) then
+  elseif (command == 2 or command == 14 or command == 15 or command == 16 or command == 17) then
 		result = "down"
-  elseif (command == 3) then
+  elseif (command == 3 or command == 18 or command == 19 or command == 20 or command == 21) then
     result = "right"
-  elseif (command == 4) then
+  elseif (command == 4 or command == 22 or command == 23 or command == 24 or command == 25) then
     result = "left"
-  elseif (command == 5) then
+  elseif (command == 5 or command == 26 or command == 27 or command == 28 or command == 29) then
     result = "upright"
-  elseif (command == 6) then
+  elseif (command == 6 or command == 30 or command == 31 or command == 32 or command == 33) then
     result = "upleft"
-  elseif (command == 7) then
+  elseif (command == 7 or command == 34 or command == 35 or command == 36 or command == 37) then
     result = "downright"
-  elseif (command == 8) then
+  elseif (command == 8 or command == 38 or command == 39 or command == 40 or command == 41) then
     result = "downleft"
-  elseif (command == 9) then
+  elseif (command == 9 or command == 42 or command == 43 or command == 44 or command == 45) then
     result = "stop"
   elseif (command == 10) then
     result = "restart"

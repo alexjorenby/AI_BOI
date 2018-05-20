@@ -25,9 +25,15 @@ seed = game:GetSeeds()
 room = game:GetRoom()
 tears = {}
 tears2 = {}
+blood_tears = {}
 item_time = 600
 frame_counter = 0
+
 room_map = {}
+enemy_map = {}
+item_map = {}
+projectile_map = {}
+
 end_game = 1
 command = -1
 custom_score = 0
@@ -35,7 +41,7 @@ distance_check = 0
 pickup_table = {}
 target_flag = 0
 seedName = "ZX8Q WFES"
---seed:SetStartSeed(seedName)
+seed:SetStartSeed(seedName)
 
 local seconds_passed = 0
 local target = -1
@@ -66,6 +72,9 @@ local clear_bonus = 0
 local kill_bonus = 0
 local game_score = 0
 
+local countdown = 2
+local start_countdown = 0
+
 
 -- Calls on room entry to update item retrieval timer. --
 -- Lower time on already entered rooms so that we only --
@@ -82,6 +91,7 @@ function testMod:new_room_update()
 
   tears = {}
   tears2 = {}
+  blood_tears = {}
 	if (room_desc.VisitedCount > 1) then
 		item_time = 150
 	else
@@ -96,7 +106,8 @@ function testMod:new_room_update()
     end
     RoomBonuses = RoomBonuses + 10
   end
---  custom_score = (custom_score + ((100)/room_desc.VisitedCount))
+  
+  start_countdown = start_countdown + 1
   
 end
 
@@ -183,6 +194,7 @@ function testMod:update_agent()
     
   if (xxx == 1) then
     Isaac.ExecuteCommand("seed ZX8Q WFES")
+--    Isaac.ExecuteCommand("restart")
     xxx = 0
   end
   
@@ -201,17 +213,19 @@ function testMod:update_agent()
 	Isaac.RenderText("ITEM TIME: " .. tostring(item_time), 200, 25, 255, 0, 255, 255)
   Isaac.RenderText("Custom Score: " .. tostring(custom_score), 50, 25, 255, 0, 255, 255)
     
+  blood_tears = {}
+  collector.collect_tears(tears, blood_tears)
+    
   if (frame_counter % 15 == 0) then
     target = update_strategy()
   end 
-  collector.collect_tears(tears)
   
   Isaac.RenderText("game_score: " .. tostring(game_score), 300, 300, 255, 0, 255, 255)
 --  Isaac.RenderText("DamagePenalty: " .. tostring(DamagePenalty), 100, 250, 255, 0, 255, 255)
   Isaac.RenderText("Score: " .. tostring(game_score + custom_score), 200, 275, 255, 0, 255, 255)
 
   
-	cartographer.render_map(room_map)
+	cartographer.render_map(room_map, enemy_map, item_map, projectile_map)
   
 	operator.traverse_path(player, path)
   
@@ -236,6 +250,14 @@ function update_strategy()
   
   end_game = player:GetHearts() + player:GetSoulHearts() + player:GetBlackHearts() + player:GetEternalHearts() + player:GetGoldenHearts() + player:GetExtraLives()
   
+  if start_countdown == 3 then
+    countdown = countdown - 1
+  end
+  
+  if countdown == 0 then
+--    post_init_restart()
+  end
+  
   if check >= 0 then
     check = check - 1
   end
@@ -251,7 +273,10 @@ function update_strategy()
 --  local door_table = {-1,-1,-1,-1,-1,-1,-1,-1}
   
   room_map = {}
-  cartographer.make_new_map(room_map, door_table, collection[1], collection[3], collection[2])
+  enemy_map = {}
+  item_map = {}
+  projectile_map = {}
+  cartographer.make_new_map(room_map, door_table, collection[1], collection[3], collection[2], blood_tears, enemy_map, item_map, projectile_map)
   
   local targets = fighter.Shoot_Tear(5)
   local sum_distance = 0
@@ -311,6 +336,50 @@ function update_strategy()
     iterator = iterator + 1
   end  
   
+  iterator = 0
+  square_count = 0
+
+  
+  while (iterator < 450 and square_count < 135) do
+    if (end_game <= 0 or item_time <= -10000 or (command > 45 and check < 1)) then
+      new_str = new_str .. tostring(-1) .. "\n"
+    end
+    if (enemy_map[iterator] ~= nil) then
+      new_str = new_str .. tostring(enemy_map[iterator]) .. "\n"
+      square_count = square_count + 1
+    end
+    iterator = iterator + 1
+  end  
+  
+  iterator = 0
+  square_count = 0  
+  
+  while (iterator < 450 and square_count < 135) do
+    if (end_game <= 0) then
+      new_str = new_str .. tostring(-1) .. "\n"
+    end
+    if (room_map[iterator] ~= nil) then
+      new_str = new_str .. tostring(item_map[iterator]) .. "\n"
+      square_count = square_count + 1
+    end
+    iterator = iterator + 1
+  end  
+  
+  iterator = 0
+  square_count = 0
+  
+  while (iterator < 450 and square_count < 135) do
+    if (end_game <= 0) then
+      new_str = new_str .. tostring(-1) .. "\n"
+    end
+    if (room_map[iterator] ~= nil) then
+      new_str = new_str .. tostring(projectile_map[iterator]) .. "\n"
+      square_count = square_count + 1
+    end
+    iterator = iterator + 1
+  end  
+  
+  
   local player_velocity = player.Velocity
   new_str = new_str .. tostring(player_velocity.X) .. "\n"
   new_str = new_str .. tostring(player_velocity.Y) .. "\n"
@@ -344,53 +413,18 @@ function update_strategy()
   for i=1,8 do
     new_str = new_str .. tostring(door_table[i]) .. "\n"
   end
-  
-  local target_count = 0
-  for idx, ent in pairs(targets) do
-    target_flag = ent[1]
-    if ent == nil or ent[1] == nil then
-      new_str = new_str .. tostring(-1) .. "\n"
-    else
-      new_str = new_str .. tostring(ent[2]) .. "\n"
-    end
-    target_count = target_count + 1
-  end
-  
-  while target_count < 5 do
-    new_str = new_str .. tostring(-1)
-  end
-  
-  local proj_count = 0
-  for ent, x in pairs(tears) do
-    local check = true
-    for a, b in pairs(x) do
-      if b == nil then
-        check = false
-      end
-    end
-    if proj_count <= 5 and check then      
-      new_str = new_str .. tostring(x["p_tear_fall_accel"]) .. "\n" .. tostring(x["p_tear_fall_speed"]) .. "\n" .. tostring(x["p_tear_flags"]) .. "\n" .. tostring(x["p_tear_height"]) .. "\n" .. tostring(x["p_homing_strength"]) .. "\n" .. tostring(x["p_acceleration"]) .. "\n" .. tostring(x["p_position"].X) .. "\n" .. tostring(x["p_position"].Y) .. "\n" .. tostring(x["p_velocity"].X) .. "\n" .. tostring(x["p_velocity"].Y) .. "\n"
-
-      proj_count = proj_count + 1
-    end
-  end
-  
-  while proj_count <= 5 do
-    new_str = new_str .. "0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n"
-    proj_count = proj_count + 1
-  end
-  
+      
   for i=action_history_queue.first, action_history_queue.last do
     new_str = new_str .. tostring(action_history_queue[i]) .. "\n"
   end
-  
+    
   if (new_str ~= "") then
     str = new_str .. str
     Isaac.SaveModData(testMod, str)
   end
   
-  if (end_game <= 0 or item_time <= -10000 or (command > 9 and check < 1)) then
-    if command > 9 then
+  if (end_game <= 0 or item_time <= -5000 or (command > 45 and check < 1)) then
+    if command > 45 then
       custom_score = 0
       check = 10
     end
@@ -400,7 +434,7 @@ function update_strategy()
   
 
   if (room:IsClear()) then
-    aim_direction = 0
+--    aim_direction = 0
   else
     return targets[1][1]
   end
@@ -414,6 +448,8 @@ function post_init_restart()
   check = 10
   stage = -1
   new_stage = -1
+  countdown = 2
+  start_countdown = 0
 
   DamagePenalty = 0
   ExplorationBonus = 0
