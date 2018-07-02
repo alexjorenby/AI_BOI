@@ -12,7 +12,7 @@ local BlackBox = require("agent/blackbox")
 
 local function main()
     
-  blackBox = BlackBox(4, 9, 15, 9*15, 45, 9, 15)
+  blackBox = BlackBox(5, 9, 15, 9*15, 45, 9, 15)
   
   local action = 0
   
@@ -23,9 +23,9 @@ local function main()
     new_file_size = atrib.size
     
     if (new_file_size > 10) then
-      input, new_score = communicate.process_features(4, 15, 9)
+      input, new_score = communicate.process_features(5, 15, 9)
       if input[1][1][1] == -1 then
-        skip = 20
+        skip = 15
       end
       action = blackBox:Run(input, new_score, skip)
       communicate.update_cmd(action)

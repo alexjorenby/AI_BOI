@@ -27,13 +27,13 @@ function BlackBox:_init(depth, height, width, numFeatures, numOutputs, rows, col
   self.max_iter = math.huge
   self.train = true
   self.discount = 0.9
-  self.learning_rate = 0.0001
+  self.learning_rate = 0.00001
   self.store_data = true
   self.dataset_size = 500000000
-  self.train_iter = 1
-  self.train_learning_rate = 0.0001
-  self.random_percentage = 5
-  self.batch_size = 1
+  self.train_iter = 3
+  self.train_learning_rate = 0.00001
+  self.random_percentage = 75
+  self.batch_size = 5
   self.foresight = 10
   self.load_model = true
   self.score = 0
@@ -75,11 +75,11 @@ function BlackBox:Run(passed_input, new_score, skip)
   local target_action = nil
   local string = ""
 
-  if (self.iteration > 5000 and self.random_percentage > 0) then
+  if (self.iteration > 10000 and self.random_percentage > 0) then
     self.random_percentage = 25
   end
   
-  if (self.iteration > 10000) then
+  if (self.iteration > 50000) then
 --    self.test = true
     self.random_percentage = 5
   end
@@ -109,11 +109,13 @@ function BlackBox:Run(passed_input, new_score, skip)
     observed_output[target_action] = reward
         
 --    string = string .. "\n" .. "Target Observed output: \n" .. tostring(observed_output)
-    string = string .. "\n" .. "Target predicted output: \n"
+--    string = string .. "\n" .. "Target predicted output: \n"
     local str = ""
-    for p = 1, self.num_outputs do
-      str = str .. tostring(target_predicted_output[p]) .. ",\n"
-    end
+--    for p = 1, self.num_outputs do
+--      str = str .. tostring(target_predicted_output[p]) .. ",\n"
+--    end
+    string = string .. "Predicted reward: " .. target_predicted_output[target_action] .. "\n"
+    string = string .. "Reward: " .. tostring(reward) .. "\n"
     string = string .. str .. "\n" .. "Random Percentage: " .. tostring(self.random_percentage)
     
     local nan_error = 0

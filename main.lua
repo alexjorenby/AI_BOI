@@ -13,6 +13,7 @@ local sensor = require("scripts.planning.goal")
 local collector = require("scripts.sensors.entities")
 local queue = require("agent.queue")
 local action_history_queue = queue.new()
+local RefreshRate = 15
 
 for i=1, 5 do
   queue.pushright(action_history_queue, -1)
@@ -33,6 +34,8 @@ room_map = {}
 enemy_map = {}
 item_map = {}
 projectile_map = {}
+detail_map = {}
+hud_map = {}
 
 end_game = 1
 command = -1
@@ -104,8 +107,10 @@ function testMod:new_room_update()
     elseif (room_type == 9) then
       clear_bonus = 100
     end
-    RoomBonuses = RoomBonuses + 10
+--    RoomBonuses = RoomBonuses + 10
+    custom_score = custom_score + 10 + clear_bonus
   end
+  
   
   start_countdown = start_countdown + 1
   
@@ -156,8 +161,10 @@ function update_stage()
     bonus = 3000 + 3000
   end
   
-  BaseStagePenalty = BaseStagePenalty + penalty
-  StageBonus = StageBonus + bonus
+--  BaseStagePenalty = BaseStagePenalty + penalty
+--  StageBonus = StageBonus + bonus
+  custom_score = custom_score + bonus
+
 end
 
 xxx = 1
@@ -167,8 +174,8 @@ function testMod:update_agent()
   
   player = Isaac.GetPlayer(0)
   
-  if (frame_counter % 60 == 0) then
-    seconds_passed = seconds_passed + 1
+  if (frame_counter % 10 == 0) then
+    seconds_passed = seconds_passed --+ 1/6
   end
   
   if clear_bonus > 0 and room:IsClear() then
@@ -179,17 +186,18 @@ function testMod:update_agent()
   EnemiesInTheRoom = room:GetAliveEnemiesCount()  
   
   
-  ExplorationBonus = RoomBonuses + 100 * (BossTrapRoomsCleared + 3 * AngelStatuesFought) + kill_bonus
+--  ExplorationBonus = RoomBonuses + 100 * (BossTrapRoomsCleared + 3 * AngelStatuesFought) + kill_bonus
     
     
-  SchwagBonus = player:GetGoldenHearts() + 10 * (player:GetMaxHearts() + player:GetHearts() + player:GetSoulHearts() + player:GetBlackHearts() + player:GetEternalHearts() + player:GetNumCoins()) + 20 * (player:GetNumKeys() + player:GetNumBombs()) + PickupBonus
+--  SchwagBonus = player:GetGoldenHearts() + 10 * (player:GetMaxHearts() + player:GetHearts() + player:GetSoulHearts() + player:GetBlackHearts() + player:GetEternalHearts() + player:GetNumCoins()) + 20 * (player:GetNumKeys() + player:GetNumBombs()) + PickupBonus
   
-  DamagePenalty = math.ceil((1.0 - math.exp(HitsTaken * math.log(0.8) / 12)) * (ExplorationBonus * 0.8))
+--  DamagePenalty = math.ceil((1.0 - math.exp(HitsTaken * math.log(0.8) / 12)) * (ExplorationBonus * 0.8))
   
-  SecondsPenalty = math.exp(((seconds_passed) * -0.22) / BaseStagePenalty)
-  TimePenalty = math.floor(math.ceil(((RushBonus + MegaSatanBonus + LambBonus + XXXBonus + StageBonus) * 0.8) * (1.0 - SecondsPenalty)))
+--  SecondsPenalty = math.exp(((seconds_passed) * -0.22) / BaseStagePenalty)
+--  TimePenalty = math.floor(math.ceil(((RushBonus + MegaSatanBonus + LambBonus + XXXBonus + StageBonus) * 0.8) * (1.0 - SecondsPenalty)))
   
-  game_score = ExplorationBonus + SchwagBonus + RushBonus + MegaSatanBonus + LambBonus + XXXBonus + StageBonus - DamagePenalty - SecondsPenalty - TimePenalty
+--  game_score = ExplorationBonus + SchwagBonus + RushBonus + MegaSatanBonus + LambBonus + XXXBonus + StageBonus - DamagePenalty - SecondsPenalty - TimePenalty
+
   
     
   if (xxx == 1) then
@@ -216,7 +224,7 @@ function testMod:update_agent()
   blood_tears = {}
   collector.collect_tears(tears, blood_tears)
     
-  if (frame_counter % 15 == 0) then
+  if (frame_counter % RefreshRate == 0) then
     target = update_strategy()
   end 
   
@@ -225,11 +233,9 @@ function testMod:update_agent()
   Isaac.RenderText("Score: " .. tostring(game_score + custom_score), 200, 275, 255, 0, 255, 255)
 
   
-	cartographer.render_map(room_map, enemy_map, item_map, projectile_map)
+	cartographer.render_map(room_map, enemy_map, item_map, projectile_map, detail_map, hud_map)
   
 	operator.traverse_path(player, path)
-  
-  
   
   temp = Isaac.LoadModData(testMod)
   if (# temp < 8 and tonumber(temp) ~= nil) then
@@ -254,10 +260,6 @@ function update_strategy()
     countdown = countdown - 1
   end
   
-  if countdown == 0 then
---    post_init_restart()
-  end
-  
   if check >= 0 then
     check = check - 1
   end
@@ -276,7 +278,9 @@ function update_strategy()
   enemy_map = {}
   item_map = {}
   projectile_map = {}
-  cartographer.make_new_map(room_map, door_table, collection[1], collection[3], collection[2], blood_tears, enemy_map, item_map, projectile_map)
+  detail_map = {}
+  hud_map = {}
+  cartographer.make_new_map(room_map, door_table, collection[1], collection[3], collection[2], blood_tears, enemy_map, item_map, projectile_map, detail_map, hud_map, custom_score / 20, item_time / 100, end_game)
   
   local targets = fighter.Shoot_Tear(5)
   local sum_distance = 0
@@ -297,18 +301,18 @@ function update_strategy()
 
 	curr_node = room:GetGridIndex(player.Position)
   
-  if (curr_node == last_node) then
-    stationary_counter = stationary_counter + 1
-    if (stationary_counter > 1) then
-      if (room:IsClear()) then
-        custom_score = custom_score - 1
-      else
-        custom_score = custom_score - 0.5
-      end
-    end
-  else
-    stationary_counter = 0
-  end
+--  if (curr_node == last_node) then
+--    stationary_counter = stationary_counter + 1
+--    if (stationary_counter > 10) then
+--      if (room:IsClear()) then
+--        custom_score = custom_score - 1
+--      else
+--        custom_score = custom_score - 0.2
+--      end
+--    end
+--  else
+--    stationary_counter = 0
+--  end
     
   last_node = curr_node
   
@@ -321,9 +325,10 @@ function update_strategy()
   local iterator = 0
   local square_count = 0
   
-  custom_score = custom_score + (item_time / 10000)
+--  custom_score = custom_score + (item_time / 10000)
   
-  local new_str = tostring(game_score + (custom_score * 0.5)) .. "\n"
+--  local new_str = tostring(game_score + (custom_score * 0.5)) .. "\n"
+  local new_str = tostring(custom_score * 0.5) .. "\n"
 
   while (iterator < 450 and square_count < 135) do
     if (end_game <= 0) then
@@ -358,7 +363,7 @@ function update_strategy()
     if (end_game <= 0) then
       new_str = new_str .. tostring(-1) .. "\n"
     end
-    if (room_map[iterator] ~= nil) then
+    if (item_map[iterator] ~= nil) then
       new_str = new_str .. tostring(item_map[iterator]) .. "\n"
       square_count = square_count + 1
     end
@@ -372,51 +377,80 @@ function update_strategy()
     if (end_game <= 0) then
       new_str = new_str .. tostring(-1) .. "\n"
     end
-    if (room_map[iterator] ~= nil) then
+    if (projectile_map[iterator] ~= nil) then
       new_str = new_str .. tostring(projectile_map[iterator]) .. "\n"
       square_count = square_count + 1
     end
     iterator = iterator + 1
   end  
   
+  iterator = 0
+  square_count = 0  
   
-  local player_velocity = player.Velocity
-  new_str = new_str .. tostring(player_velocity.X) .. "\n"
-  new_str = new_str .. tostring(player_velocity.Y) .. "\n"
-  new_str = new_str .. tostring(player.Position.X) .. "\n"
-  new_str = new_str .. tostring(player.Position.Y) .. "\n"
+--  while (iterator < 450 and square_count < 135) do
+--    if (end_game <= 0) then
+--      new_str = new_str .. tostring(-1) .. "\n"
+--    end
+--    if (detail_map[iterator] ~= nil) then
+--      new_str = new_str .. tostring(detail_map[iterator]) .. "\n"
+--      square_count = square_count + 1
+--    end
+--    iterator = iterator + 1
+--  end  
+  
+  iterator = 0
+  square_count = 0  
+
+  while (iterator < 450 and square_count < 135) do
+    if (end_game <= 0) then
+      new_str = new_str .. tostring(-1) .. "\n"
+    end
+    if (hud_map[iterator] ~= nil) then
+      new_str = new_str .. tostring(hud_map[iterator]) .. "\n"
+      square_count = square_count + 1
+    end
+    iterator = iterator + 1
+  end  
+  
+  
+  
+--  local player_velocity = player.Velocity
+--  new_str = new_str .. tostring(player_velocity.X) .. "\n"
+--  new_str = new_str .. tostring(player_velocity.Y) .. "\n"
+--  new_str = new_str .. tostring(player.Position.X) .. "\n"
+--  new_str = new_str .. tostring(player.Position.Y) .. "\n"
 --  new_str = new_str .. tostring(door_prox) .. "\n"
 --  new_str = new_str .. tostring(room:GetType()) .. "\n"
 --  new_str = new_str .. tostring(room:GetRoomShape()) .. "\n"
-  new_str = new_str .. tostring(item_time) .. "\n"
-  new_str = new_str .. tostring(curr_node) .. "\n"
-  new_str = new_str .. tostring(last_node) .. "\n"
+--  new_str = new_str .. tostring(item_time) .. "\n"
+--  new_str = new_str .. tostring(curr_node) .. "\n"
+--  new_str = new_str .. tostring(last_node) .. "\n"
   
-  new_str = new_str .. tostring(ExplorationBonus) .. "\n"
-  new_str = new_str .. tostring(RushBonus) .. "\n"
-  new_str = new_str .. tostring(MegaSatanBonus) .. "\n"
-  new_str = new_str .. tostring(LambBonus) .. "\n"
-  new_str = new_str .. tostring(XXXBonus) .. "\n"
-  new_str = new_str .. tostring(StageBonus) .. "\n"
-  new_str = new_str .. tostring(DamagePenalty) .. "\n"
-  new_str = new_str .. tostring(SecondsPenalty) .. "\n"
-  new_str = new_str .. tostring(TimePenalty) .. "\n"
-  new_str = new_str .. tostring(EnemiesInTheRoom) .. "\n"
-  new_str = new_str .. tostring(RoomBonuses) .. "\n"
-  new_str = new_str .. tostring(kill_bonus) .. "\n"
-  new_str = new_str .. tostring(HitsTaken) .. "\n"
-  new_str = new_str .. tostring(seconds_passed) .. "\n"
-  new_str = new_str .. tostring(BaseStagePenalty) .. "\n"
-  new_str = new_str .. tostring(SchwagBonus) .. "\n"
-  new_str = new_str .. tostring(PickupBonus) .. "\n"
+--  new_str = new_str .. tostring(ExplorationBonus) .. "\n"
+--  new_str = new_str .. tostring(RushBonus) .. "\n"
+--  new_str = new_str .. tostring(MegaSatanBonus) .. "\n"
+--  new_str = new_str .. tostring(LambBonus) .. "\n"
+--  new_str = new_str .. tostring(XXXBonus) .. "\n"
+--  new_str = new_str .. tostring(StageBonus) .. "\n"
+--  new_str = new_str .. tostring(DamagePenalty) .. "\n"
+--  new_str = new_str .. tostring(SecondsPenalty) .. "\n"
+--  new_str = new_str .. tostring(TimePenalty) .. "\n"
+--  new_str = new_str .. tostring(EnemiesInTheRoom) .. "\n"
+--  new_str = new_str .. tostring(RoomBonuses) .. "\n"
+--  new_str = new_str .. tostring(kill_bonus) .. "\n"
+--  new_str = new_str .. tostring(HitsTaken) .. "\n"
+--  new_str = new_str .. tostring(seconds_passed) .. "\n"
+--  new_str = new_str .. tostring(BaseStagePenalty) .. "\n"
+--  new_str = new_str .. tostring(SchwagBonus) .. "\n"
+--  new_str = new_str .. tostring(PickupBonus) .. "\n"
   
-  for i=1,8 do
-    new_str = new_str .. tostring(door_table[i]) .. "\n"
-  end
+--  for i=1,8 do
+--    new_str = new_str .. tostring(door_table[i]) .. "\n"
+--  end
       
-  for i=action_history_queue.first, action_history_queue.last do
-    new_str = new_str .. tostring(action_history_queue[i]) .. "\n"
-  end
+--  for i=action_history_queue.first, action_history_queue.last do
+--    new_str = new_str .. tostring(action_history_queue[i]) .. "\n"
+--  end
     
   if (new_str ~= "") then
     str = new_str .. str
@@ -443,6 +477,8 @@ end
 
 
 function post_init_restart()
+  custom_score = custom_score - 1000
+
   seconds_passed = 0
   target = -1
   check = 10
@@ -474,7 +510,6 @@ function post_init_restart()
   kill_bonus = 0
   game_score = 0
   custom_score = 0
-
 
   init_action = 0
   reset = 0
@@ -540,9 +575,9 @@ end
 
 function testMod:entity_killed(entity)
   if (entity:isvulnerableEnemy()) then
-    custom_score = custom_score + 30
+    custom_score = custom_score + 30 + math.floor(math.ceil((EnemiesInTheRoom+1)^0.2 * 5))
     
-    kill_bonus = kill_bonus + math.floor(math.ceil((EnemiesInTheRoom+1)^0.2 * 5))
+--    kill_bonus = kill_bonus + math.floor(math.ceil((EnemiesInTheRoom+1)^0.2 * 5))
     
   end
 end
@@ -605,7 +640,8 @@ function testMod:pickup_update(Pickup, Variant, Subtype)
   else
     bonus = 0
   end
-  PickupBonus = PickupBonus + bonus
+--  PickupBonus = PickupBonus + bonus
+  custom_score = custom_score + bonus
 end
 
 
